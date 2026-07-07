@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Env / secrets
+.env
+*.db
+*.sqlite3
+
+# Node / frontend
+node_modules/
+dist/
+frontend/.vite/
+
+# Local archive snapshots (docs.rar, frontend/src.rar) — not versioned
+*.rar
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+graphify-out/
+
+# Local Claude Code config only — .claude/ itself (settings.json, rules/, agents/,
+# commands/, hooks/, skills/, agent-memory/) is committed and shared by the team.
+.claude/settings.local.json
+.claude/agent-memory-local/
+.claude/**/*.local.*
+CLAUDE.local.md

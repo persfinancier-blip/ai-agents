@@ -1,0 +1,88 @@
+/* Вектор·OS — Terminal Strategist base (per approved design renders). */
+
+:root {
+  --bg: #0a0a0b;
+  --bar: #0e0e10;
+  --sf: #141416;
+  --sf2: #1b1b1e;
+  --ln: rgba(255, 255, 255, 0.08);
+  --ink: #e4e3df;
+  --i55: rgba(228, 227, 223, 0.55);
+  --i40: rgba(228, 227, 223, 0.4);
+  --i35: rgba(228, 227, 223, 0.35);
+  --gr: #8fd14f;
+  --rk: #e8544a;
+  --op: #e8c04a;
+  --sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', 'Cascadia Mono', Consolas, monospace;
+
+  font: 400 14px/1.5 var(--sans);
+  color-scheme: dark;
+  color: var(--ink);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #2b2b2f transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #26262a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+}
+
+@keyframes os-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes os-flow {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+  }
+}
