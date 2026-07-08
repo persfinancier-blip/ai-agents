@@ -22,3 +22,14 @@
 - [ ] Привязка frontend-карты целей (`frontend/src/os/data.ts`, сейчас демо-данные) к реальному Goal API (backend готов, Шаг 1: CRUD + fog/defined).
 - [ ] CI: проверить пути `.github/workflows/ci.yml` после переезда `decision-center/` в корень (working-directory `backend`/`frontend` уже относительные — но прогнать реальный workflow до первого push).
 - [ ] GitHub MCP-сервер — добавить в `.mcp.json`, когда появится remote (см. README «MCP»).
+- [ ] Шаг 3 (обязательно ДО связей KPI→KPI): заменить replace-all в `patch_goal`
+  (`kpi_service.delete_kpis_for_goal` + пересоздание) на diff-sync — сопоставлять KPI
+  по id, обновлять на месте, трогать только дельту. Причина: replace-all меняет
+  `entity_id` у KPI при каждом патче цели; с появлением связей KPI→KPI это будет рвать
+  ссылки. Пока связей нет — безвредно, но к Шагу 3 это вопрос целостности, не оптимизации.
+- [ ] `goal_service.list_goals` тянет KPI отдельным запросом на каждую цель (N+1).
+  Оптимизировать (bulk-загрузка KPI по списку goal_id) при росте числа целей.
+- [ ] Доработать `.claude/hooks/protect-main.sh`: (а) ловит только `Edit|Write|NotebookEdit`
+  — запись через Bash его обходит (дыра); (б) блокирует легитимное разрешение
+  merge-конфликтов на `main`. Вариант: пропускать правки при активном merge (`MERGE_HEAD`)
+  или сливать через temp-ветку с fast-forward.
