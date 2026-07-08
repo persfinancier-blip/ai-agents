@@ -7,7 +7,7 @@ from app.models.goal import RoleLabel
 
 class GoalKpi(BaseModel):
     name: str
-    target: float
+    target: float | None
     unit: str
 
 

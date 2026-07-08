@@ -43,6 +43,13 @@ async def test_definiteness_fog_with_kpi_but_no_owner(client: AsyncClient) -> No
     assert resp.json()["definiteness"] == "fog"
 
 
+async def test_definiteness_fog_with_kpi_but_no_target(client: AsyncClient) -> None:
+    """A KPI without a target is a valid fog state (the KPI itself exists, unmeasured)."""
+    resp = await client.post("/api/v1/goals", json=_payload(kpis=[{"name": "Goodwill", "target": None, "unit": ""}]))
+    assert resp.status_code == 201
+    assert resp.json()["definiteness"] == "fog"
+
+
 async def test_list_goals(client: AsyncClient) -> None:
     await client.post("/api/v1/goals", json=_payload(name="Goal A"))
     await client.post("/api/v1/goals", json=_payload(name="Goal B"))
@@ -67,6 +74,24 @@ async def test_patch_goal_updates_fields(client: AsyncClient) -> None:
     body = resp.json()
     assert body["name"] == "Updated name"
     assert body["owner"] == _payload()["owner"]  # untouched fields survive
+    assert len(body["kpis"]) == 1  # kpis untouched by a patch that doesn't mention them
+
+
+async def test_patch_goal_kpis_replaces_the_set(client: AsyncClient) -> None:
+    create = await client.post("/api/v1/goals", json=_payload())
+    goal_id = create.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/goals/{goal_id}",
+        json={
+            "kpis": [
+                {"name": "Revenue", "target": 2_000_000, "unit": "USD"},
+                {"name": "NPS", "target": 50, "unit": "score"},
+            ]
+        },
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()["kpis"]) == 2
 
 
 async def test_patch_missing_goal_returns_404(client: AsyncClient) -> None:

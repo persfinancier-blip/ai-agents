@@ -2,6 +2,20 @@
 
 Журнал проходов по репозиторию: дата · ветка/коммит · что сделано · что дальше. Новые записи — сверху. Добавляется командой `/devlog`.
 
+## 2026-07-08 · feat/goal-step2a-kpi-entity · не закоммичено
+
+- **Что сделано:**
+  - KPI вынесен из JSON-поля `goal.kpis` в полноценную Entity-сущность: `models/kpi.py` (`Kpi`, `entity_id` PK/FK + `goal_id` FK на `entity.id`, `target: float | None`, `unit`), `schemas/kpi.py` (`KpiRead`, задел под Шаг 3), `services/kpi_service.py` (create/list/delete-for-goal). Имя/описание KPI — в `entity.name`/`entity.description`, не дублируются в `kpi`.
+  - `goal_service.compute_definiteness` переписан на сигнатуру `(owner, kpi_targets: list[float | None])`; `target=None` — валидный туман-кейс (KPI существует, таргета нет).
+  - `create_goal`/`patch_goal` работают через `kpi_service`; патч `kpis` — replace-all (удалить прежние KPI цели, создать заново из payload), отмечено комментарием как временная стратегия.
+  - API-контракт `Goal` не изменился (`kpis` по-прежнему список `{name, target, unit}` в create/read); внутри роут подгружает KPI-строки отдельным запросом и передаёт в `to_goal_read`.
+  - Миграция `add kpi entity, drop goal.kpis json`: создана таблица `kpi` (FK ×2 на `entity.id`), дропнута колонка `goal.kpis`; данных в dev не было — data-migration не потребовалась. Известный автоген-quirk (`Text`-импорт для JSONB-варианта) поправлен в downgrade для симметрии с исходной миграцией.
+  - `kpi` зарегистрирован в импортах моделей (`alembic/env.py`, оба тестовых регистратора).
+  - Тесты обновлены под новую модель: definiteness-ветка «KPI без target → fog», replace-all патч (1 KPI → 2 KPI), проверка «KPI — сущность со своим id». `pytest` (30), `ruff`, `ruff format`, `mypy` — зелёные.
+- **Дальше:**
+  - Смёржить ветку в `main` (правило — не копить ветки).
+  - Шаг 2b — структурное дерево целей (`parent_id`); Шаг 3 — граф связей KPI→KPI + ресурсы узла.
+
 ## 2026-07-08 · main · интеграция веток, main консолидирован
 
 - **Что сделано:** слиты в `main` в порядке зависимостей: (1) `docs/delegation-policy`, (2) `docs/goal-alignment-model` (тянет за собой `docs/reconcile-decisions` — отдельно не сливалась, коммиты уже внутри), (3) `feat/goal-entity-step1-crud`. Конфликты возникли только в `DEVLOG.md` (дважды, 3 записи объединены по фактическим таймстемпам коммитов) и `BACKLOG.md` (Шаг 2/3 Goal Entity — оставлена более детальная версия из ADR-0003 вместо устаревшего дубля); код и канонические доки (`Management_Model.md`, ADR-файлы, `*.py`) слились чисто, без конфликтов. Все влитые ветки удалены (`docs/delegation-policy`, `docs/goal-alignment-model`, `docs/reconcile-decisions`, `feat/goal-entity-step1-crud`) — в репозитории остаётся только `main`. Проверка после слияния кода: backend (`ruff check`, `ruff format --check`, `mypy` — все зелёные, `pytest` — 27 passed) и frontend (`npm run build`, `npm run lint`) — все зелёные.
