@@ -17,6 +17,7 @@ class GoalCreate(BaseModel):
     role_label: RoleLabel = RoleLabel.OWNER
     description: str | None = None
     kpis: list[GoalKpi] = Field(default_factory=list)
+    parent_id: str | None = None
 
 
 class GoalPatch(BaseModel):
@@ -26,6 +27,7 @@ class GoalPatch(BaseModel):
     role_label: RoleLabel | None = None
     kpis: list[GoalKpi] | None = None
     is_backlog: bool | None = None
+    parent_id: str | None = None
 
 
 class GoalRead(BaseModel):
@@ -42,6 +44,7 @@ class GoalRead(BaseModel):
     kpis: list[GoalKpi]
     is_backlog: bool
     definiteness: str
+    parent_id: str | None
 
     created_at: datetime
     updated_at: datetime

@@ -1,8 +1,12 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.models import board_opinion, decision, entity, goal, kpi, scenario, status_log  # noqa: F401
+from app.models.entity import Entity
+from app.models.goal import Goal
+from app.models.kpi import Kpi
 from app.schemas.goal import GoalCreate, GoalKpi, GoalPatch
 from app.services import goal_service
 
@@ -93,5 +97,98 @@ async def test_patch_goal_kpis_replaces_the_set() -> None:
         assert updated is not None
         _updated_entity, _updated_goal, updated_kpi_rows = updated
         assert len(updated_kpi_rows) == 2
+
+    await engine.dispose()
+
+
+async def test_would_create_cycle_direct_transitive_and_valid_move() -> None:
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with session_factory() as session:
+        root, _, _ = await goal_service.create_goal(session, GoalCreate(name="Root", owner="owner@example.com"))
+        child, _, _ = await goal_service.create_goal(
+            session, GoalCreate(name="Child", owner="owner@example.com", parent_id=root.id)
+        )
+        grandchild, _, _ = await goal_service.create_goal(
+            session, GoalCreate(name="Grandchild", owner="owner@example.com", parent_id=child.id)
+        )
+
+        assert await goal_service.would_create_cycle(session, root.id, root.id) is True  # self-parent
+        assert await goal_service.would_create_cycle(session, root.id, grandchild.id) is True  # transitive
+        assert await goal_service.would_create_cycle(session, grandchild.id, root.id) is False  # valid move
+
+    await engine.dispose()
+
+
+async def test_cascade_delete_removes_subtree_and_kpi_entities() -> None:
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with session_factory() as session:
+        parent_entity, _, _ = await goal_service.create_goal(
+            session,
+            GoalCreate(
+                name="Parent", owner="owner@example.com", kpis=[GoalKpi(name="Revenue", target=100, unit="USD")]
+            ),
+        )
+        await goal_service.create_goal(
+            session,
+            GoalCreate(
+                name="Child",
+                owner="owner@example.com",
+                parent_id=parent_entity.id,
+                kpis=[GoalKpi(name="NPS", target=50, unit="score")],
+            ),
+        )
+
+        outcome = await goal_service.delete_goal(session, parent_entity.id, cascade=True)
+        assert outcome == "ok"
+
+        assert (await session.execute(select(Goal))).scalars().all() == []
+        assert (await session.execute(select(Kpi))).scalars().all() == []
+        remaining_kpi_entities = (
+            (await session.execute(select(Entity).where(Entity.entity_type == "kpi"))).scalars().all()
+        )
+        assert remaining_kpi_entities == []  # no orphan entity rows left behind by the cascade
+
+    await engine.dispose()
+
+
+async def test_delete_with_children_blocked_without_cascade() -> None:
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with session_factory() as session:
+        parent_entity, _, _ = await goal_service.create_goal(
+            session, GoalCreate(name="Parent", owner="owner@example.com")
+        )
+        await goal_service.create_goal(
+            session, GoalCreate(name="Child", owner="owner@example.com", parent_id=parent_entity.id)
+        )
+
+        assert await goal_service.delete_goal(session, parent_entity.id, cascade=False) == "has_children"
+        assert await goal_service.delete_goal(session, "does-not-exist", cascade=False) == "not_found"
 
     await engine.dispose()
