@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
 from app.schemas.goal import GoalCreate, GoalPatch, GoalRead
 from app.services import goal_service, kpi_service
-from app.services.goal_service import GoalCycleError, GoalParentNotFoundError
+from app.services.goal_service import GoalCycleError, GoalKpiNotFoundError, GoalParentNotFoundError
 
 router = APIRouter(prefix="/goals", tags=["goals"])
 
@@ -55,6 +55,8 @@ async def patch_goal(goal_id: str, payload: GoalPatch, session: AsyncSession = D
     try:
         result = await goal_service.patch_goal(session, goal_id, payload)
     except GoalParentNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except GoalKpiNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except GoalCycleError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

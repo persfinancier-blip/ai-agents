@@ -22,6 +22,10 @@ class GoalCycleError(Exception):
     """Raised when a parent_id change would make a goal its own ancestor."""
 
 
+class GoalKpiNotFoundError(Exception):
+    """Raised when a patch's kpis list references an id that isn't one of the goal's KPIs."""
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -41,7 +45,10 @@ def compute_definiteness(owner: str, kpi_targets: list[float | None]) -> str:
 
 
 def to_goal_read(entity: Entity, goal: Goal, kpi_rows: list[KpiRow]) -> GoalRead:
-    kpis = [GoalKpi(name=kpi_entity.name, target=kpi.target, unit=kpi.unit) for kpi_entity, kpi in kpi_rows]
+    kpis = [
+        GoalKpi(id=kpi_entity.id, name=kpi_entity.name, target=kpi.target, unit=kpi.unit)
+        for kpi_entity, kpi in kpi_rows
+    ]
     return GoalRead(
         id=entity.id,
         entity_type=entity.entity_type,
@@ -158,6 +165,28 @@ async def get_subtree(session: AsyncSession, goal_id: str) -> list[GoalRow] | No
     return result
 
 
+async def sync_kpis(session: AsyncSession, goal_id: str, incoming: list[GoalKpi]) -> None:
+    """Diff-sync instead of replace-all, so unchanged KPIs keep their entity_id (ADR-0004 R2:
+    once KPIs carry alignment links in Step 3a, replace-all would silently kill those links).
+    """
+    current_rows = await kpi_service.list_kpis_for_goal(session, goal_id)
+    current_ids = {kpi_entity.id for kpi_entity, _kpi in current_rows}
+
+    incoming_ids = {k.id for k in incoming if k.id is not None}
+    unknown_ids = incoming_ids - current_ids
+    if unknown_ids:
+        raise GoalKpiNotFoundError(f"KPI(s) {sorted(unknown_ids)} do not belong to goal {goal_id}")
+
+    for kpi_id in current_ids - incoming_ids:
+        await kpi_service.delete_kpi(session, kpi_id)
+
+    for k in incoming:
+        if k.id is not None:
+            await kpi_service.update_kpi(session, k.id, name=k.name, target=k.target, unit=k.unit)
+        else:
+            await kpi_service.create_kpi(session, goal_id=goal_id, name=k.name, target=k.target, unit=k.unit)
+
+
 async def delete_goal(session: AsyncSession, goal_id: str, cascade: bool) -> Literal["ok", "has_children", "not_found"]:
     subtree = await get_subtree(session, goal_id)
     if subtree is None:
@@ -199,7 +228,7 @@ async def patch_goal(
     entity_fields = {"name", "description", "owner"}
     for field, value in updates.items():
         if field in ("parent_id", "kpis"):
-            continue  # handled separately (parent_id above, kpis replace-all below)
+            continue  # handled separately (parent_id above, kpis diff-sync below)
         if field in entity_fields:
             setattr(entity, field, value)
         elif field == "role_label" and value is not None:
@@ -208,10 +237,7 @@ async def patch_goal(
             setattr(goal, field, value)
 
     if payload.kpis is not None:
-        # Replace-all for Step 2a; diff-based sync deferred to a later step.
-        await kpi_service.delete_kpis_for_goal(session, goal_id)
-        for k in payload.kpis:
-            await kpi_service.create_kpi(session, goal_id=goal_id, name=k.name, target=k.target, unit=k.unit)
+        await sync_kpis(session, goal_id, payload.kpis)
 
     entity.version += 1
     entity.updated_at = _now()

@@ -40,6 +40,13 @@ async def create_kpi(
     return entity, kpi
 
 
+async def get_kpi(session: AsyncSession, kpi_entity_id: str) -> tuple[Entity, Kpi] | None:
+    result = await session.execute(
+        select(Entity, Kpi).join(Kpi, Kpi.entity_id == Entity.id).where(Kpi.entity_id == kpi_entity_id)
+    )
+    return result.tuples().one_or_none()
+
+
 async def list_kpis_for_goal(session: AsyncSession, goal_id: str) -> list[tuple[Entity, Kpi]]:
     result = await session.execute(
         select(Entity, Kpi).join(Kpi, Kpi.entity_id == Entity.id).where(Kpi.goal_id == goal_id)
@@ -47,8 +54,34 @@ async def list_kpis_for_goal(session: AsyncSession, goal_id: str) -> list[tuple[
     return list(result.tuples().all())
 
 
+async def update_kpi(
+    session: AsyncSession, kpi_entity_id: str, name: str, target: float | None, unit: str
+) -> tuple[Entity, Kpi]:
+    """In-place update — id (entity_id) is preserved. Caller must have already validated the id exists."""
+    row = await get_kpi(session, kpi_entity_id)
+    if row is None:
+        raise ValueError(f"KPI {kpi_entity_id} does not exist")
+    entity, kpi = row
+    entity.name = name
+    kpi.target = target
+    kpi.unit = unit
+    await session.flush()
+    return entity, kpi
+
+
+async def delete_kpi(session: AsyncSession, kpi_entity_id: str) -> None:
+    """Point delete of a single KPI (entity + kpi rows), leaving the goal's other KPIs untouched."""
+    row = await get_kpi(session, kpi_entity_id)
+    if row is None:
+        return
+    entity, kpi = row
+    await session.delete(kpi)
+    await session.delete(entity)
+    await session.flush()
+
+
 async def delete_kpis_for_goal(session: AsyncSession, goal_id: str) -> None:
-    """Replace-all strategy for Step 2a; diff-based sync deferred to a later step."""
+    """Bulk delete — used for whole-goal cascade delete, not for patch-time sync (see delete_kpi)."""
     rows = await list_kpis_for_goal(session, goal_id)
     for kpi_entity, kpi in rows:
         await session.delete(kpi)
