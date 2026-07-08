@@ -6,6 +6,7 @@ from app.models.goal import RoleLabel
 
 
 class GoalKpi(BaseModel):
+    id: str | None = None
     name: str
     target: float | None
     unit: str

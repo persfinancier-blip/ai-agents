@@ -1,3 +1,4 @@
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -9,6 +10,7 @@ from app.models.goal import Goal
 from app.models.kpi import Kpi
 from app.schemas.goal import GoalCreate, GoalKpi, GoalPatch
 from app.services import goal_service
+from app.services.goal_service import GoalKpiNotFoundError
 
 
 def test_compute_definiteness_no_kpis_is_fog() -> None:
@@ -190,5 +192,128 @@ async def test_delete_with_children_blocked_without_cascade() -> None:
 
         assert await goal_service.delete_goal(session, parent_entity.id, cascade=False) == "has_children"
         assert await goal_service.delete_goal(session, "does-not-exist", cascade=False) == "not_found"
+
+    await engine.dispose()
+
+
+async def test_sync_kpis_preserves_id_of_unchanged_kpi() -> None:
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with session_factory() as session:
+        goal_entity, _, kpi_rows = await goal_service.create_goal(
+            session,
+            GoalCreate(
+                name="Test goal",
+                owner="owner@example.com",
+                kpis=[
+                    GoalKpi(name="Revenue", target=100, unit="USD"),
+                    GoalKpi(name="NPS", target=40, unit="score"),
+                ],
+            ),
+        )
+        revenue_id = next(e.id for e, k in kpi_rows if e.name == "Revenue")
+        nps_id = next(e.id for e, k in kpi_rows if e.name == "NPS")
+
+        updated = await goal_service.patch_goal(
+            session,
+            goal_entity.id,
+            GoalPatch(
+                kpis=[
+                    GoalKpi(id=revenue_id, name="Revenue", target=200, unit="USD"),
+                    GoalKpi(id=nps_id, name="NPS", target=40, unit="score"),
+                ]
+            ),
+        )
+        assert updated is not None
+        _updated_entity, _updated_goal, updated_kpi_rows = updated
+        updated_by_id = {e.id: k for e, k in updated_kpi_rows}
+        assert set(updated_by_id) == {revenue_id, nps_id}  # ids unchanged
+        assert updated_by_id[revenue_id].target == 200  # value updated in place
+
+    await engine.dispose()
+
+
+async def test_sync_kpis_add_new_and_delete_omitted_without_orphan_entity() -> None:
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with session_factory() as session:
+        goal_entity, _, kpi_rows = await goal_service.create_goal(
+            session,
+            GoalCreate(
+                name="Test goal",
+                owner="owner@example.com",
+                kpis=[
+                    GoalKpi(name="Revenue", target=100, unit="USD"),
+                    GoalKpi(name="NPS", target=40, unit="score"),
+                ],
+            ),
+        )
+        revenue_id = next(e.id for e, k in kpi_rows if e.name == "Revenue")
+        nps_id = next(e.id for e, k in kpi_rows if e.name == "NPS")
+
+        # Keep Revenue (by id), drop NPS (omitted), add a brand-new KPI (no id).
+        updated = await goal_service.patch_goal(
+            session,
+            goal_entity.id,
+            GoalPatch(
+                kpis=[
+                    GoalKpi(id=revenue_id, name="Revenue", target=100, unit="USD"),
+                    GoalKpi(name="CSAT", target=90, unit="score"),
+                ]
+            ),
+        )
+        assert updated is not None
+        _updated_entity, _updated_goal, updated_kpi_rows = updated
+        updated_ids = {e.id for e, _k in updated_kpi_rows}
+        assert revenue_id in updated_ids
+        assert nps_id not in updated_ids
+        assert len(updated_ids) == 2  # Revenue (kept) + CSAT (new)
+
+        orphan_kpi_entity = (await session.execute(select(Entity).where(Entity.id == nps_id))).scalars().one_or_none()
+        assert orphan_kpi_entity is None  # deleted KPI leaves no orphan entity row
+        orphan_kpi_row = (await session.execute(select(Kpi).where(Kpi.entity_id == nps_id))).scalars().one_or_none()
+        assert orphan_kpi_row is None
+
+    await engine.dispose()
+
+
+async def test_sync_kpis_unknown_id_raises() -> None:
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with session_factory() as session:
+        goal_entity, _, _ = await goal_service.create_goal(
+            session, GoalCreate(name="Test goal", owner="owner@example.com")
+        )
+
+        with pytest.raises(GoalKpiNotFoundError):
+            await goal_service.patch_goal(
+                session,
+                goal_entity.id,
+                GoalPatch(kpis=[GoalKpi(id="does-not-belong-here", name="X", target=1, unit="")]),
+            )
 
     await engine.dispose()

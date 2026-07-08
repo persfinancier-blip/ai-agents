@@ -94,6 +94,99 @@ async def test_patch_goal_kpis_replaces_the_set(client: AsyncClient) -> None:
     assert len(resp.json()["kpis"]) == 2
 
 
+async def test_patch_goal_kpis_preserves_id_of_unchanged_kpis(client: AsyncClient) -> None:
+    """The key diff-sync test: patching a KPI's target must not change its id."""
+    create = await client.post(
+        "/api/v1/goals",
+        json=_payload(
+            kpis=[
+                {"name": "Revenue", "target": 1_000_000, "unit": "USD"},
+                {"name": "NPS", "target": 40, "unit": "score"},
+            ]
+        ),
+    )
+    kpis = create.json()["kpis"]
+    revenue_id = next(k["id"] for k in kpis if k["name"] == "Revenue")
+    nps_id = next(k["id"] for k in kpis if k["name"] == "NPS")
+    assert revenue_id is not None
+    assert nps_id is not None
+
+    resp = await client.patch(
+        f"/api/v1/goals/{create.json()['id']}",
+        json={
+            "kpis": [
+                {"id": revenue_id, "name": "Revenue", "target": 2_000_000, "unit": "USD"},
+                {"id": nps_id, "name": "NPS", "target": 40, "unit": "score"},
+            ]
+        },
+    )
+    assert resp.status_code == 200
+    updated_kpis = resp.json()["kpis"]
+    updated_revenue = next(k for k in updated_kpis if k["id"] == revenue_id)
+    updated_nps = next(k for k in updated_kpis if k["id"] == nps_id)
+    assert updated_revenue["target"] == 2_000_000
+    assert updated_nps["target"] == 40
+
+
+async def test_patch_goal_kpis_add_new_alongside_existing(client: AsyncClient) -> None:
+    create = await client.post("/api/v1/goals", json=_payload())
+    goal_id = create.json()["id"]
+    existing_id = create.json()["kpis"][0]["id"]
+
+    resp = await client.patch(
+        f"/api/v1/goals/{goal_id}",
+        json={
+            "kpis": [
+                {"id": existing_id, "name": "Revenue", "target": 1_000_000, "unit": "USD"},
+                {"name": "NPS", "target": 50, "unit": "score"},
+            ]
+        },
+    )
+    assert resp.status_code == 200
+    kpis = resp.json()["kpis"]
+    assert len(kpis) == 2
+    ids = {k["id"] for k in kpis}
+    assert existing_id in ids  # untouched existing KPI kept its id
+    new_kpi = next(k for k in kpis if k["id"] != existing_id)
+    assert new_kpi["name"] == "NPS"
+    assert new_kpi["id"] is not None  # the new KPI got its own stable id
+
+
+async def test_patch_goal_kpis_omitting_one_deletes_it(client: AsyncClient) -> None:
+    create = await client.post(
+        "/api/v1/goals",
+        json=_payload(
+            kpis=[
+                {"name": "Revenue", "target": 1_000_000, "unit": "USD"},
+                {"name": "NPS", "target": 40, "unit": "score"},
+            ]
+        ),
+    )
+    goal_id = create.json()["id"]
+    kpis = create.json()["kpis"]
+    revenue = next(k for k in kpis if k["name"] == "Revenue")
+
+    resp = await client.patch(
+        f"/api/v1/goals/{goal_id}",
+        json={"kpis": [{"id": revenue["id"], "name": "Revenue", "target": revenue["target"], "unit": revenue["unit"]}]},
+    )
+    assert resp.status_code == 200
+    remaining = resp.json()["kpis"]
+    assert len(remaining) == 1
+    assert remaining[0]["id"] == revenue["id"]
+
+
+async def test_patch_goal_kpis_unknown_id_is_400(client: AsyncClient) -> None:
+    create = await client.post("/api/v1/goals", json=_payload())
+    goal_id = create.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/goals/{goal_id}",
+        json={"kpis": [{"id": "does-not-belong-here", "name": "X", "target": 1, "unit": ""}]},
+    )
+    assert resp.status_code == 400
+
+
 async def test_patch_missing_goal_returns_404(client: AsyncClient) -> None:
     resp = await client.patch("/api/v1/goals/does-not-exist", json={"name": "x"})
     assert resp.status_code == 404
