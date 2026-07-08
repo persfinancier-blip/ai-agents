@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
-from app.models import board_opinion, decision, entity, scenario, status_log  # noqa: F401
+from app.models import board_opinion, decision, entity, goal, scenario, status_log  # noqa: F401
 from app.schemas.decision import DecisionCreate, DecisionPatch
 from app.services import decision_service
 from app.services.decision_service import DecisionAlreadyDecidedError
