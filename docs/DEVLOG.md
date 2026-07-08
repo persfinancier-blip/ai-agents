@@ -2,6 +2,21 @@
 
 Журнал проходов по репозиторию: дата · ветка/коммит · что сделано · что дальше. Новые записи — сверху. Добавляется командой `/devlog`.
 
+## 2026-07-08 · feat/goal-step2b-tree · не закоммичено
+
+- **Что сделано:**
+  - Goal Entity, Шаг 2b — структурное дерево: `goal.parent_id` (self-FK на `entity.id`, nullable, индекс). Явно отделено от смысловых связей KPI→KPI (Шаг 3) — в докстринге и коде нет слова «декомпозиция».
+  - Запрет циклов: `would_create_cycle(session, goal_id, new_parent_id)` — чистая функция, поднимается по цепочке предков от кандидата-родителя; покрыта unit-тестами (прямой цикл, транзитивный, валидный перенос).
+  - `get_subtree(session, goal_id)` — плоский список поддерева (BFS по `parent_id`, обход в Python, включая сам узел).
+  - `delete_goal(session, goal_id, cascade)` → `"ok" | "has_children" | "not_found"`: без `cascade` и с детьми — блок; с `cascade=True` — удаление всего поддерева от листьев к корню, включая KPI каждого узла (`kpi_service.delete_kpis_for_goal`), без сиротских entity/kpi строк.
+  - Роуты: `GET /goals/{id}/subtree` (плоский список), `DELETE /goals/{id}?cascade=` (404/409/204); create/patch принимают `parent_id`, при несуществующем родителе — 400, при цикле — 409.
+  - Определённость НЕ агрегируется по детям — `compute_definiteness` не тронут, родитель в тумане/определён только по своим KPI.
+  - Миграция `add goal.parent_id`: автоген сгенерировал `create_foreign_key`/`drop_constraint` вне batch-режима, что падает на SQLite (`NotImplementedError: No support for ALTER of constraints`) — переписано через `op.batch_alter_table` (известный SQLite-quirk, добавлен в миграцию явным комментарием); upgrade/downgrade прогнаны туда-обратно на чистой БД.
+  - Тесты: интеграционные (parent_id на create/read, цикл прямой/транзитивный, несуществующий parent_id не 500, subtree на дереве из 3 уровней и для среднего узла, каскад 409/204, определённость не меняется от детей) + юнит (`would_create_cycle` все ветки, каскад чистит KPI-сущности). `pytest` (46), `ruff`, `ruff format`, `mypy` — зелёные.
+- **Дальше:**
+  - Смёржить ветку в `main` (правило — не копить ветки).
+  - Шаг 3 — граф связей KPI→KPI + ресурсы узла; при diff-sync KPI (см. BACKLOG) учитывать, что `entity_id` KPI теперь должен переживать патчи цели, чтобы связи не рвались.
+
 ## 2026-07-08 · docs/backlog-pre-2b · не закоммичено
 
 - **Что сделано:** в `BACKLOG.md` (раздел «Инженерия») добавлены три пункта перед Шагом 2b: (1) заменить replace-all в `patch_goal` на diff-sync KPI до появления связей KPI→KPI в Шаге 3 (целостность `entity_id`); (2) N+1-запрос KPI в `goal_service.list_goals` — оптимизировать при росте числа целей; (3) доработать `.claude/hooks/protect-main.sh` — не ловит запись через Bash, блокирует легитимные merge-конфликты на `main`. Код не тронут.

@@ -110,3 +110,135 @@ async def test_is_backlog_defaults_false_and_patchable(client: AsyncClient) -> N
     body = resp.json()
     assert body["is_backlog"] is True
     assert body["definiteness"] == "defined"  # is_backlog doesn't affect definiteness
+
+
+async def test_root_goal_has_no_parent(client: AsyncClient) -> None:
+    resp = await client.post("/api/v1/goals", json=_payload())
+    assert resp.status_code == 201
+    assert resp.json()["parent_id"] is None
+
+
+async def test_create_with_parent_id(client: AsyncClient) -> None:
+    parent = await client.post("/api/v1/goals", json=_payload(name="Parent"))
+    parent_id = parent.json()["id"]
+
+    child = await client.post("/api/v1/goals", json=_payload(name="Child", parent_id=parent_id))
+    assert child.status_code == 201
+    assert child.json()["parent_id"] == parent_id
+
+
+async def test_create_with_nonexistent_parent_id_is_not_500(client: AsyncClient) -> None:
+    resp = await client.post("/api/v1/goals", json=_payload(parent_id="does-not-exist"))
+    assert resp.status_code == 400
+
+
+async def test_patch_parent_id_to_nonexistent_goal_is_not_500(client: AsyncClient) -> None:
+    create = await client.post("/api/v1/goals", json=_payload())
+    goal_id = create.json()["id"]
+
+    resp = await client.patch(f"/api/v1/goals/{goal_id}", json={"parent_id": "does-not-exist"})
+    assert resp.status_code == 400
+
+
+async def test_patch_self_as_parent_is_rejected(client: AsyncClient) -> None:
+    create = await client.post("/api/v1/goals", json=_payload())
+    goal_id = create.json()["id"]
+
+    resp = await client.patch(f"/api/v1/goals/{goal_id}", json={"parent_id": goal_id})
+    assert resp.status_code in (400, 409)
+
+
+async def test_patch_creating_transitive_cycle_is_rejected(client: AsyncClient) -> None:
+    root = await client.post("/api/v1/goals", json=_payload(name="Root"))
+    root_id = root.json()["id"]
+    child = await client.post("/api/v1/goals", json=_payload(name="Child", parent_id=root_id))
+    child_id = child.json()["id"]
+    grandchild = await client.post("/api/v1/goals", json=_payload(name="Grandchild", parent_id=child_id))
+    grandchild_id = grandchild.json()["id"]
+
+    # Root becoming a child of its own grandchild would close a loop.
+    resp = await client.patch(f"/api/v1/goals/{root_id}", json={"parent_id": grandchild_id})
+    assert resp.status_code in (400, 409)
+
+
+async def test_definiteness_unaffected_by_children(client: AsyncClient) -> None:
+    parent = await client.post("/api/v1/goals", json=_payload(kpis=[]))  # fog: no kpis
+    parent_id = parent.json()["id"]
+    assert parent.json()["definiteness"] == "fog"
+
+    await client.post("/api/v1/goals", json=_payload(name="Child", parent_id=parent_id))
+
+    resp = await client.get(f"/api/v1/goals/{parent_id}")
+    assert resp.json()["definiteness"] == "fog"  # still fog: no bottom-up aggregation from children
+
+
+async def test_subtree_returns_flat_branch(client: AsyncClient) -> None:
+    root = await client.post("/api/v1/goals", json=_payload(name="Root"))
+    root_id = root.json()["id"]
+    mid = await client.post("/api/v1/goals", json=_payload(name="Mid", parent_id=root_id))
+    mid_id = mid.json()["id"]
+    leaf = await client.post("/api/v1/goals", json=_payload(name="Leaf", parent_id=mid_id))
+    leaf_id = leaf.json()["id"]
+    # A sibling of Mid, off the root, should not appear in Mid's subtree.
+    await client.post("/api/v1/goals", json=_payload(name="Sibling", parent_id=root_id))
+
+    resp = await client.get(f"/api/v1/goals/{root_id}/subtree")
+    assert resp.status_code == 200
+    names = {row["name"] for row in resp.json()}
+    assert names == {"Root", "Mid", "Leaf", "Sibling"}
+
+    resp = await client.get(f"/api/v1/goals/{mid_id}/subtree")
+    assert resp.status_code == 200
+    ids = {row["id"] for row in resp.json()}
+    assert ids == {mid_id, leaf_id}
+
+
+async def test_subtree_missing_goal_returns_404(client: AsyncClient) -> None:
+    resp = await client.get("/api/v1/goals/does-not-exist/subtree")
+    assert resp.status_code == 404
+
+
+async def test_delete_leaf_without_cascade_succeeds(client: AsyncClient) -> None:
+    create = await client.post("/api/v1/goals", json=_payload())
+    goal_id = create.json()["id"]
+
+    resp = await client.delete(f"/api/v1/goals/{goal_id}")
+    assert resp.status_code == 204
+
+    resp = await client.get(f"/api/v1/goals/{goal_id}")
+    assert resp.status_code == 404
+
+
+async def test_delete_node_with_children_requires_cascade(client: AsyncClient) -> None:
+    parent = await client.post("/api/v1/goals", json=_payload(name="Parent"))
+    parent_id = parent.json()["id"]
+    await client.post("/api/v1/goals", json=_payload(name="Child", parent_id=parent_id))
+
+    resp = await client.delete(f"/api/v1/goals/{parent_id}")
+    assert resp.status_code == 409
+
+    # The node and its child must both still exist after the rejected delete.
+    assert (await client.get(f"/api/v1/goals/{parent_id}")).status_code == 200
+
+
+async def test_delete_cascade_removes_whole_subtree_and_kpis(client: AsyncClient) -> None:
+    parent = await client.post("/api/v1/goals", json=_payload(name="Parent"))
+    parent_id = parent.json()["id"]
+    child = await client.post("/api/v1/goals", json=_payload(name="Child", parent_id=parent_id))
+    child_id = child.json()["id"]
+
+    resp = await client.delete(f"/api/v1/goals/{parent_id}?cascade=true")
+    assert resp.status_code == 204
+
+    assert (await client.get(f"/api/v1/goals/{parent_id}")).status_code == 404
+    assert (await client.get(f"/api/v1/goals/{child_id}")).status_code == 404
+
+    resp = await client.get("/api/v1/goals")
+    names = {row["name"] for row in resp.json()}
+    assert "Parent" not in names
+    assert "Child" not in names
+
+
+async def test_delete_missing_goal_returns_404(client: AsyncClient) -> None:
+    resp = await client.delete("/api/v1/goals/does-not-exist")
+    assert resp.status_code == 404
