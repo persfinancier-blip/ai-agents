@@ -2,6 +2,18 @@
 
 Журнал проходов по репозиторию: дата · ветка/коммит · что сделано · что дальше. Новые записи — сверху. Добавляется командой `/devlog`.
 
+## 2026-07-08 · feat/goal-entity-step1-crud · не закоммичено
+
+- **Что сделано:**
+  - Реализован Goal Entity, Шаг 1: `models/goal.py`, `schemas/goal.py`, `services/goal_service.py`, `api/v1/goals.py` (CRUD) — по образцу Decision.
+  - Автоматический расчёт определённости «туман/определён» (`compute_definiteness`): нужен owner + KPI с числовым таргетом; ручной флаг `is_backlog` — отдельное измерение, не влияет на расчёт.
+  - Миграция `add goal table` сгенерирована и применена (`alembic upgrade head`); исправлен известный автоген-quirk (отсутствующий импорт `Text` для JSONB-варианта).
+  - `goal` зарегистрирован в импортах моделей (`alembic/env.py`, оба тестовых conftest/test-регистратора).
+  - Тесты: интеграционные (`test_goals.py`, все ветки definiteness + is_backlog) и юнит (`test_goal_service.py`, прямые тесты `compute_definiteness` + create/patch). `pytest`/`ruff`/`ruff format`/`mypy` — зелёные.
+- **Дальше:**
+  - Привязка frontend-карты целей (сейчас прототип на демо-данных) к реальному API — отдельный будущий срез (см. BACKLOG).
+  - Шаг 2 — дерево целей (`parent_id`); Шаг 3 — ресурсы + увязка (третий критерий определённости).
+
 ## 2026-07-07 · main · baseline
 
 - **Что сделано:**

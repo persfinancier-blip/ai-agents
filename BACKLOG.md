@@ -12,6 +12,8 @@
 ## Инженерия
 
 - [ ] M3 — борд CFO/COO/CTO + синтез рекомендации.
-- [ ] Goal Entity на бэкенде (сейчас карта целей — только UI-прототип на демо-данных, `frontend/src/os/data.ts`).
+- [ ] Привязка frontend-карты целей (`frontend/src/os/data.ts`, сейчас демо-данные) к реальному Goal API (backend готов, Шаг 1: CRUD + fog/defined).
+- [ ] Goal Entity Шаг 2 — дерево целей (`parent_id`).
+- [ ] Goal Entity Шаг 3 — ресурсы + увязка (третий критерий определённости «есть ресурс»).
 - [ ] CI: проверить пути `.github/workflows/ci.yml` после переезда `decision-center/` в корень (working-directory `backend`/`frontend` уже относительные — но прогнать реальный workflow до первого push).
 - [ ] GitHub MCP-сервер — добавить в `.mcp.json`, когда появится remote (см. README «MCP»).

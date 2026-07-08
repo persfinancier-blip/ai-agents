@@ -1,0 +1,47 @@
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+from app.models.goal import RoleLabel
+
+
+class GoalKpi(BaseModel):
+    name: str
+    target: float
+    unit: str
+
+
+class GoalCreate(BaseModel):
+    name: str
+    owner: str = ""
+    role_label: RoleLabel = RoleLabel.OWNER
+    description: str | None = None
+    kpis: list[GoalKpi] = Field(default_factory=list)
+
+
+class GoalPatch(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    owner: str | None = None
+    role_label: RoleLabel | None = None
+    kpis: list[GoalKpi] | None = None
+    is_backlog: bool | None = None
+
+
+class GoalRead(BaseModel):
+    id: str
+    entity_type: str
+    name: str
+    description: str | None
+    owner: str
+    status: str
+    lifecycle_stage: str
+    risk_level: str
+
+    role_label: str
+    kpis: list[GoalKpi]
+    is_backlog: bool
+    definiteness: str
+
+    created_at: datetime
+    updated_at: datetime
