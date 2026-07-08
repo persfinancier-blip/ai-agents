@@ -4,7 +4,6 @@ from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-from app.db.types import JSONType
 
 
 class GoalLifecycleStage(str, enum.Enum):
@@ -35,5 +34,4 @@ class Goal(Base):
     entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("entity.id"), primary_key=True)
 
     role_label: Mapped[str] = mapped_column(String(20), default=RoleLabel.OWNER.value)
-    kpis: Mapped[list[dict]] = mapped_column(JSONType, default=list)
     is_backlog: Mapped[bool] = mapped_column(Boolean, default=False)

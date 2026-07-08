@@ -16,7 +16,7 @@
 
 - [ ] M3 — борд CFO/COO/CTO + синтез рекомендации.
 - [x] Goal Entity Шаг 1 — CRUD + автодетекция fog/defined (`compute_definiteness`), см. ветку `feat/goal-entity-step1-crud` (слита в main).
-- [ ] Goal Entity Шаг 2a — вынести KPI из JSON-поля `goal.kpis` в отдельную таблицу-сущность со своим ID (рефактор Шага 1: `compute_definiteness` должен читать KPI из новой таблицы); модель — `docs/adr/0003-kpi-entity-and-goal-alignment.md`.
+- [x] Goal Entity Шаг 2a — KPI вынесен из JSON-поля `goal.kpis` в отдельную таблицу-сущность (`models/kpi.py`) со своим ID; `compute_definiteness` читает таргеты из неё. См. ветку `feat/goal-step2a-kpi-entity`.
 - [ ] Goal Entity Шаг 2b — структурное дерево целей: `parent_id` (self-FK) на `Goal`; модель — `docs/full-vision/02_Product/Management_Model.md` §9.3, `docs/adr/0003-kpi-entity-and-goal-alignment.md`.
 - [ ] Goal Entity Шаг 3 — граф связей целей (таблица KPI → KPI, индивидуальный KPI-источник / командная цель-потребитель) + ресурсы узла (`resource.kind`, ADR-0002); на этом шаге проработать соотношение структурной свёртки ресурсов и смысловой увязки по графу связей (см. Management_Model §9.8) и открытые вопросы ADR-0003 (множественные связи, удаление KPI-источника, направленность/циклы графа, измерение качественных KPI).
 - [ ] Привязка frontend-карты целей (`frontend/src/os/data.ts`, сейчас демо-данные) к реальному Goal API (backend готов, Шаг 1: CRUD + fog/defined).
