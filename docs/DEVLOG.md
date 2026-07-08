@@ -2,7 +2,12 @@
 
 Журнал проходов по репозиторию: дата · ветка/коммит · что сделано · что дальше. Новые записи — сверху. Добавляется командой `/devlog`.
 
-## 2026-07-08 · feat/goal-step2a-kpi-entity · не закоммичено
+## 2026-07-08 · main · a9ecce0
+
+- **Что сделано:** ветка `feat/goal-step2a-kpi-entity` (KPI как отдельная Entity-сущность) слита в `main` без конфликтов (`git merge --no-ff`); после слияния перепроверены все четыре проверки на `main` — `pytest` (30 passed), `ruff check`, `ruff format --check`, `mypy app` — зелёные. Ветка удалена (правило: не копить ветки).
+- **Дальше:** Шаг 2b — структурное дерево целей (`parent_id`); Шаг 3 — граф связей KPI→KPI + ресурсы узла.
+
+## 2026-07-08 · feat/goal-step2a-kpi-entity · 91958fe
 
 - **Что сделано:**
   - KPI вынесен из JSON-поля `goal.kpis` в полноценную Entity-сущность: `models/kpi.py` (`Kpi`, `entity_id` PK/FK + `goal_id` FK на `entity.id`, `target: float | None`, `unit`), `schemas/kpi.py` (`KpiRead`, задел под Шаг 3), `services/kpi_service.py` (create/list/delete-for-goal). Имя/описание KPI — в `entity.name`/`entity.description`, не дублируются в `kpi`.
