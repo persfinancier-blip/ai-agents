@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from app.config import settings
 from app.db.base import Base
-from app.models import board_opinion, decision, entity, goal, kpi, scenario, status_log  # noqa: F401
+from app.models import board_opinion, decision, entity, goal, kpi, kpi_link, scenario, status_log  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
