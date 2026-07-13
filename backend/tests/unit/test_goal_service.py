@@ -10,6 +10,7 @@ from app.models import (  # noqa: F401
     entity,
     goal,
     kpi,
+    kpi_factor,
     kpi_link,
     kpi_link_cycle,
     scenario,
@@ -27,17 +28,17 @@ def test_compute_definiteness_no_kpis_is_fog() -> None:
     assert goal_service.compute_definiteness("alice@example.com", []) == "fog"
 
 
-def test_compute_definiteness_kpi_without_target_is_fog() -> None:
-    assert goal_service.compute_definiteness("alice@example.com", [None]) == "fog"
+def test_compute_definiteness_kpi_not_measurable_is_fog() -> None:
+    assert goal_service.compute_definiteness("alice@example.com", [False]) == "fog"
 
 
 def test_compute_definiteness_no_owner_is_fog() -> None:
-    assert goal_service.compute_definiteness("", [100.0]) == "fog"
-    assert goal_service.compute_definiteness("   ", [100.0]) == "fog"
+    assert goal_service.compute_definiteness("", [True]) == "fog"
+    assert goal_service.compute_definiteness("   ", [True]) == "fog"
 
 
-def test_compute_definiteness_owner_and_numeric_target_is_defined() -> None:
-    assert goal_service.compute_definiteness("alice@example.com", [100.0]) == "defined"
+def test_compute_definiteness_owner_and_measurable_kpi_is_defined() -> None:
+    assert goal_service.compute_definiteness("alice@example.com", [True]) == "defined"
 
 
 async def test_create_and_patch_goal() -> None:

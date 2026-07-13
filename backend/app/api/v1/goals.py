@@ -13,7 +13,7 @@ async def _to_goal_read_list(session: AsyncSession, rows: list[goal_service.Goal
     result = []
     for entity, goal in rows:
         kpi_rows = await kpi_service.list_kpis_for_goal(session, entity.id)
-        result.append(goal_service.to_goal_read(entity, goal, kpi_rows))
+        result.append(await goal_service.to_goal_read(session, entity, goal, kpi_rows))
     return result
 
 
@@ -23,7 +23,7 @@ async def create_goal(payload: GoalCreate, session: AsyncSession = Depends(get_s
         entity, goal, kpi_rows = await goal_service.create_goal(session, payload)
     except GoalParentNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return goal_service.to_goal_read(entity, goal, kpi_rows)
+    return await goal_service.to_goal_read(session, entity, goal, kpi_rows)
 
 
 @router.get("", response_model=list[GoalRead])
@@ -39,7 +39,7 @@ async def get_goal(goal_id: str, session: AsyncSession = Depends(get_session)) -
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found")
     entity, goal = row
     kpi_rows = await kpi_service.list_kpis_for_goal(session, goal_id)
-    return goal_service.to_goal_read(entity, goal, kpi_rows)
+    return await goal_service.to_goal_read(session, entity, goal, kpi_rows)
 
 
 @router.get("/{goal_id}/subtree", response_model=list[GoalRead])
@@ -63,7 +63,7 @@ async def patch_goal(goal_id: str, payload: GoalPatch, session: AsyncSession = D
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found")
     entity, goal, kpi_rows = result
-    return goal_service.to_goal_read(entity, goal, kpi_rows)
+    return await goal_service.to_goal_read(session, entity, goal, kpi_rows)
 
 
 @router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)

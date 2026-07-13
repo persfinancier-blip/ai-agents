@@ -10,6 +10,7 @@ class GoalKpi(BaseModel):
     name: str
     target: float | None
     unit: str
+    computed_value: float | None = None  # read-only: filled by to_goal_read for composite KPIs; ignored on create/patch
 
 
 class GoalCreate(BaseModel):
