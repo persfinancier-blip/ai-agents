@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.entity import Entity
 from app.models.kpi import Kpi
 from app.schemas.kpi import KpiRead
-from app.services import kpi_link_service
+from app.services import kpi_factor_service, kpi_link_service
 
 
 def to_kpi_read(entity: Entity, kpi: Kpi) -> KpiRead:
@@ -73,13 +73,15 @@ async def update_kpi(
 async def delete_kpi(session: AsyncSession, kpi_entity_id: str) -> None:
     """Point delete of a single KPI (entity + kpi rows), leaving the goal's other KPIs untouched.
 
-    Cleans up the KPI's alignment links first (ADR-0004 R2: a link dies with either end).
+    Cleans up the KPI's alignment links and factor relations first (ADR-0004 R2: a link or
+    factor dies with either of its ends).
     """
     row = await get_kpi(session, kpi_entity_id)
     if row is None:
         return
     entity, kpi = row
     await kpi_link_service.delete_links_for_kpi(session, kpi_entity_id)
+    await kpi_factor_service.delete_factors_for_kpi(session, kpi_entity_id)
     await session.delete(kpi)
     await session.delete(entity)
     await session.flush()
@@ -88,11 +90,12 @@ async def delete_kpi(session: AsyncSession, kpi_entity_id: str) -> None:
 async def delete_kpis_for_goal(session: AsyncSession, goal_id: str) -> None:
     """Bulk delete — used for whole-goal cascade delete, not for patch-time sync (see delete_kpi).
 
-    Also cleans up each KPI's alignment links (ADR-0004 R2).
+    Also cleans up each KPI's alignment links and factor relations (ADR-0004 R2).
     """
     rows = await list_kpis_for_goal(session, goal_id)
     for kpi_entity, kpi in rows:
         await kpi_link_service.delete_links_for_kpi(session, kpi_entity.id)
+        await kpi_factor_service.delete_factors_for_kpi(session, kpi_entity.id)
         await session.delete(kpi)
         await session.delete(kpi_entity)
     await session.flush()

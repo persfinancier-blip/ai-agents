@@ -15,6 +15,7 @@ from app.models import (  # noqa: F401
     entity,
     goal,
     kpi,
+    kpi_factor,
     kpi_link,
     kpi_link_cycle,
     scenario,

@@ -8,7 +8,7 @@ from app.models.entity import Entity
 from app.models.goal import Goal, GoalLifecycleStage
 from app.models.kpi import Kpi
 from app.schemas.goal import GoalCreate, GoalKpi, GoalPatch, GoalRead
-from app.services import kpi_service
+from app.services import kpi_factor_service, kpi_service
 
 KpiRow = tuple[Entity, Kpi]
 GoalRow = tuple[Entity, Goal]
@@ -30,25 +30,35 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def compute_definiteness(owner: str, kpi_targets: list[float | None]) -> str:
-    """ "defined" needs an owner and at least one KPI with a numeric, non-None target.
+def compute_definiteness(owner: str, kpi_measurable: list[bool]) -> str:
+    """ "defined" needs an owner and at least one measurable KPI.
 
-    Step 3 adds a third criterion ("has a resource"); not checked here since
-    resources don't exist yet physically. No bottom-up aggregation from children —
-    a parent's definiteness depends only on its own KPIs, same as a leaf.
+    "Measurable" means a numeric target OR (Step 3b) composite — value comes from a weighted
+    sum of factor KPIs instead of a direct target; the caller (to_goal_read) precomputes this
+    per KPI. No bottom-up aggregation from children — a parent's definiteness depends only on
+    its own KPIs, same as a leaf.
     """
     has_owner = bool(owner.strip())
-    has_numeric_target = any(
-        isinstance(target, (int, float)) and not isinstance(target, bool) for target in kpi_targets
+    return "defined" if has_owner and any(kpi_measurable) else "fog"
+
+
+async def to_goal_read(session: AsyncSession, entity: Entity, goal: Goal, kpi_rows: list[KpiRow]) -> GoalRead:
+    composite_ids = await kpi_factor_service.composite_kpi_ids(
+        session, [kpi_entity.id for kpi_entity, _kpi in kpi_rows]
     )
-    return "defined" if has_owner and has_numeric_target else "fog"
 
+    kpis: list[GoalKpi] = []
+    measurable: list[bool] = []
+    for kpi_entity, kpi in kpi_rows:
+        is_composite = kpi_entity.id in composite_ids
+        computed_value = await kpi_factor_service.compute_value(session, kpi_entity.id) if is_composite else None
+        measurable.append(kpi.target is not None or is_composite)
+        kpis.append(
+            GoalKpi(
+                id=kpi_entity.id, name=kpi_entity.name, target=kpi.target, unit=kpi.unit, computed_value=computed_value
+            )
+        )
 
-def to_goal_read(entity: Entity, goal: Goal, kpi_rows: list[KpiRow]) -> GoalRead:
-    kpis = [
-        GoalKpi(id=kpi_entity.id, name=kpi_entity.name, target=kpi.target, unit=kpi.unit)
-        for kpi_entity, kpi in kpi_rows
-    ]
     return GoalRead(
         id=entity.id,
         entity_type=entity.entity_type,
@@ -61,7 +71,7 @@ def to_goal_read(entity: Entity, goal: Goal, kpi_rows: list[KpiRow]) -> GoalRead
         role_label=goal.role_label,
         kpis=kpis,
         is_backlog=goal.is_backlog,
-        definiteness=compute_definiteness(entity.owner, [kpi.target for _, kpi in kpi_rows]),
+        definiteness=compute_definiteness(entity.owner, measurable),
         parent_id=goal.parent_id,
         created_at=entity.created_at,
         updated_at=entity.updated_at,
