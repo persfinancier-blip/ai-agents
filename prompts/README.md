@@ -13,9 +13,9 @@
 
 | Файл | Что делает | Тип |
 |---|---|---|
-| `prompt-14-step3b-composite-kpi.md` | Шаг 3b: составной KPI — таблица `kpi_factor` (вес × фактор-KPI), сырая взвешенная сумма без нормализации, расширение fog-правила (target ИЛИ формула), без рекурсии (фактор обязан иметь свой числовой target) | код |
+| `prompt-17-frontend-goal-map-binding.md` | Шаг Ф1: карта целей `CommandPanel` на реальном Goal API (read-only) — TS-типы `GoalRead`, клиент `listGoals`/`getGoalSubtree`, дерево по `parent_id` + простая автораскладка, туман для fog, честное «без процентов» (факта KPI нет до ADR-0005), сид демо-целей; GoalCard и редактирование из UI — не здесь. Выполнять ПОСЛЕ №16 | код |
 
-`prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-15-workspace-platform-canon.md` выполнены и слиты в `main` (см. `_done/`).
+`prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-14-step3b-composite-kpi.md`, `prompt-15-workspace-platform-canon.md`, `prompt-16-repo-integrity-recovery.md` выполнены и слиты в `main` (см. `_done/`).
 
 ## Что дальше по плану
 
@@ -27,4 +27,4 @@
 
 Канон: решения по увязке (ADR-0002), модель целей и KPI-сущность (ADR-0003), типы связей и циклы (ADR-0004), план/факт и клиентская архитектура (ADR-0005), Workspace Platform — рабочие пространства сущностей (направление).
 
-Код Goal: Шаг 1 (CRUD + туман/определён) → 2a (KPI как Сущность) → 2b (дерево `parent_id`) → 3-0 (diff-sync KPI) → 3a (граф связей `kpi_link`) → 3c (детект циклов `kpi_link_cycle`).
+Код Goal: Шаг 1 (CRUD + туман/определён) → 2a (KPI как Сущность) → 2b (дерево `parent_id`) → 3-0 (diff-sync KPI) → 3a (граф связей `kpi_link`) → 3c (детект циклов `kpi_link_cycle`) → 3b (составной KPI `kpi_factor`).
