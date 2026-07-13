@@ -18,3 +18,4 @@
 | [0002](0002-reconciliation-first-slice.md) | Детерминированная увязка для первого среза Goal Entity | Принято |
 | [0003](0003-kpi-entity-and-goal-alignment.md) | KPI как сущность и граф увязки целей поверх структуры | Принято (модель) |
 | [0004](0004-goal-link-types-cycles-composite-kpi.md) | Типы связей целей, направленность и циклы, составной KPI | Принято (модель) |
+| [0005](0005-plan-vs-fact-and-resource-blocks.md) | План vs факт у KPI и ресурсные блоки как источник факта | Предложено |
