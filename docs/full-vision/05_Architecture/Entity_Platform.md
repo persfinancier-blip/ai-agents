@@ -2,7 +2,7 @@
 
 **Версия:** 1.0
 **Статус:** Architecture Foundation
-**Связанные документы:** PRD.md, Business_Capability_Map.md, Decision_Center.md
+**Связанные документы:** PRD.md, Business_Capability_Map.md, Decision_Center.md, Workspace_Platform.md
 
 ---
 
@@ -512,6 +512,8 @@ Analytics
 Любая новая возможность продукта должна работать только через Entity Platform.
 
 Запрещается создавать отдельные модели данных, не являющиеся Entity.
+
+Пользовательское представление Capability поверх Entity — рабочие пространства сущностей, см. Workspace_Platform.md.
 
 ---
 

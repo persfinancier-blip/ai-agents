@@ -27,6 +27,7 @@
 ## 05 — Архитектура
 - [High_Level_Design.md](05_Architecture/High_Level_Design.md) — высокоуровневый архитектурный дизайн: AI-рантайм, компоненты системы.
 - [Entity_Platform.md](05_Architecture/Entity_Platform.md) — **активный спек**: модель «Всё есть Сущность», граф знаний, отношения и жизненный цикл — фундамент модели данных бэкенда.
+- [Workspace_Platform.md](05_Architecture/Workspace_Platform.md) — **направление** (не активный спек): рабочие пространства сущностей — «каждая Сущность имеет пространство», универсальный UI-слой над Entity Platform; карта целей остаётся главным экраном, пространство — внутренность узла при зуме; блоки-районы, Dashboard-Workspace и Decision Canvas — его частные случаи.
 - [AI_Workforce_Runtime.md](05_Architecture/AI_Workforce_Runtime.md) — рантайм цифровых сотрудников: оркестрация моделей, маршрутизация, автономность.
 - [Simulation_Engine.md](05_Architecture/Simulation_Engine.md) — движок симуляции: прогнозирование эффекта изменений до внедрения (PRD §44).
 - [Integration_Hub.md](05_Architecture/Integration_Hub.md) — интеграционный слой: подключение внешних систем и источников данных.
