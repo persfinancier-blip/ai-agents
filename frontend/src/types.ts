@@ -40,3 +40,31 @@ export interface BoardOpinionRead {
   rationale: string
   created_at: string
 }
+
+/* Goal API (промпт №17) — зеркало pydantic-схем backend/app/schemas/goal.py */
+
+export interface GoalKpiRead {
+  id: string | null
+  name: string
+  target: number | null
+  unit: string
+  computed_value: number | null
+}
+
+export interface GoalRead {
+  id: string
+  entity_type: string
+  name: string
+  description: string | null
+  owner: string
+  status: string
+  lifecycle_stage: string
+  risk_level: string
+  role_label: string
+  kpis: GoalKpiRead[]
+  is_backlog: boolean
+  definiteness: 'fog' | 'defined'
+  parent_id: string | null
+  created_at: string
+  updated_at: string
+}

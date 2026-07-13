@@ -11,20 +11,19 @@
 
 ## Активные
 
-| Файл | Что делает | Тип |
-|---|---|---|
-| `prompt-17-frontend-goal-map-binding.md` | Шаг Ф1: карта целей `CommandPanel` на реальном Goal API (read-only) — TS-типы `GoalRead`, клиент `listGoals`/`getGoalSubtree`, дерево по `parent_id` + простая автораскладка, туман для fog, честное «без процентов» (факта KPI нет до ADR-0005), сид демо-целей; GoalCard и редактирование из UI — не здесь. Выполнять ПОСЛЕ №16 | код |
+Активных промптов нет — все выполнены и слиты в `main`.
 
-`prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-14-step3b-composite-kpi.md`, `prompt-15-workspace-platform-canon.md`, `prompt-16-repo-integrity-recovery.md` выполнены и слиты в `main` (см. `_done/`).
+`prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-14-step3b-composite-kpi.md`, `prompt-15-workspace-platform-canon.md`, `prompt-16-repo-integrity-recovery.md`, `prompt-17-frontend-goal-map-binding.md` выполнены и слиты в `main` (см. `_done/`).
 
 ## Что дальше по плану
 
-- Далее (после 3b) — ресурсные блоки (Финансы/Персонал/Продажи/Товары/Производство) как предпосылка «факта» KPI (ADR-0005).
+- Следующие срезы фронта: карточка цели на реальных данных, редактирование целей из UI.
+- Ресурсные блоки (Финансы/Персонал/Продажи/Товары/Производство) как предпосылка «факта» KPI (ADR-0005).
 
 ## История (в `_done/`)
 
-Инфраструктура: уборка доков, гигиена репо, бренд-бук, инициализация репозитория ai-agents, настройка Claude Code, интеграция веток, политика делегирования.
+Инфраструктура: уборка доков, гигиена репо, бренд-бук, инициализация репозитория ai-agents, настройка Claude Code, интеграция веток, политика делегирования, восстановление целостности репо (№16).
 
 Канон: решения по увязке (ADR-0002), модель целей и KPI-сущность (ADR-0003), типы связей и циклы (ADR-0004), план/факт и клиентская архитектура (ADR-0005), Workspace Platform — рабочие пространства сущностей (направление).
 
-Код Goal: Шаг 1 (CRUD + туман/определён) → 2a (KPI как Сущность) → 2b (дерево `parent_id`) → 3-0 (diff-sync KPI) → 3a (граф связей `kpi_link`) → 3c (детект циклов `kpi_link_cycle`) → 3b (составной KPI `kpi_factor`).
+Код Goal: Шаг 1 (CRUD + туман/определён) → 2a (KPI как Сущность) → 2b (дерево `parent_id`) → 3-0 (diff-sync KPI) → 3a (граф связей `kpi_link`) → 3c (детект циклов `kpi_link_cycle`) → 3b (составной KPI `kpi_factor`) → Ф1 (карта целей на Goal API, read-only).
