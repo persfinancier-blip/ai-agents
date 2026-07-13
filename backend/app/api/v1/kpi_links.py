@@ -2,11 +2,23 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
+from app.models.kpi_link_cycle import KpiLinkCycle
 from app.schemas.kpi_link import KpiLinkCreate, KpiLinkRead
+from app.schemas.kpi_link_cycle import KpiLinkCycleConfirm, KpiLinkCycleRead
 from app.services import kpi_link_service
 from app.services.kpi_link_service import DuplicateLinkError, KpiNotFoundError, SelfLinkError
 
 router = APIRouter(prefix="/kpi-links", tags=["kpi-links"])
+
+
+def _to_cycle_read(cycle: KpiLinkCycle) -> KpiLinkCycleRead:
+    return KpiLinkCycleRead(
+        id=cycle.id,
+        member_kpi_ids=cycle.member_kpi_ids,
+        member_link_ids=cycle.member_link_ids,
+        confirmed=cycle.confirmed,
+        judge_goal_id=cycle.judge_goal_id,
+    )
 
 
 @router.post("", response_model=KpiLinkRead, status_code=status.HTTP_201_CREATED)
@@ -32,6 +44,24 @@ async def list_links(
         else await kpi_link_service.list_links(session)
     )
     return [kpi_link_service.to_kpi_link_read(link) for link in links]
+
+
+# NB: /cycles must be registered before /{link_id} — otherwise FastAPI would match
+# GET /kpi-links/cycles against the dynamic {link_id} route first.
+@router.get("/cycles", response_model=list[KpiLinkCycleRead])
+async def list_cycles(session: AsyncSession = Depends(get_session)) -> list[KpiLinkCycleRead]:
+    cycles = await kpi_link_service.list_cycles(session)
+    return [_to_cycle_read(cycle) for cycle in cycles]
+
+
+@router.patch("/cycles/{cycle_id}", response_model=KpiLinkCycleRead)
+async def confirm_cycle(
+    cycle_id: str, payload: KpiLinkCycleConfirm, session: AsyncSession = Depends(get_session)
+) -> KpiLinkCycleRead:
+    cycle = await kpi_link_service.set_cycle_confirmed(session, cycle_id, payload.confirmed)
+    if cycle is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KPI link cycle not found")
+    return _to_cycle_read(cycle)
 
 
 @router.get("/{link_id}", response_model=KpiLinkRead)

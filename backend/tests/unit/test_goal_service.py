@@ -4,7 +4,17 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
-from app.models import board_opinion, decision, entity, goal, kpi, kpi_link, scenario, status_log  # noqa: F401
+from app.models import (  # noqa: F401
+    board_opinion,
+    decision,
+    entity,
+    goal,
+    kpi,
+    kpi_link,
+    kpi_link_cycle,
+    scenario,
+    status_log,
+)
 from app.models.entity import Entity
 from app.models.goal import Goal
 from app.models.kpi import Kpi

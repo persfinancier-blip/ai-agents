@@ -9,7 +9,17 @@ from app.db.base import Base
 from app.db.session import get_session
 from app.llm.factory import get_llm_provider
 from app.main import app
-from app.models import board_opinion, decision, entity, goal, kpi, kpi_link, scenario, status_log  # noqa: F401
+from app.models import (  # noqa: F401
+    board_opinion,
+    decision,
+    entity,
+    goal,
+    kpi,
+    kpi_link,
+    kpi_link_cycle,
+    scenario,
+    status_log,
+)
 from tests.fakes import DEFAULT_CFO_RESPONSE, FakeLLMProvider
 
 
