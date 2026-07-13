@@ -134,7 +134,7 @@ const ownerLabel = (g: GoalRead): string => `отв. ${g.owner.trim() === '' ? '
 const countGoals = (nodes: GoalNode[]): number =>
   nodes.reduce((acc, n) => acc + 1 + countGoals(n.children), 0)
 
-function RealGoalMap({ forest }: { forest: GoalNode[] }) {
+function RealGoalMap({ forest, onOpenGoal }: { forest: GoalNode[]; onOpenGoal: (id: string) => void }) {
   const pos = layoutForest(forest)
 
   // рёбра структурного дерева parent_id (связи KPI→KPI и циклы — не здесь: ADR-0004)
@@ -190,7 +190,8 @@ function RealGoalMap({ forest }: { forest: GoalNode[] }) {
             key={g.id}
             className={`gcard${goalTone(g)}`}
             style={{ left: p.x, top: p.y, width: p.w }}
-            title="Карточка цели — следующий срез"
+            title="Открыть карточку цели"
+            onClick={() => onOpenGoal(g.id)}
           >
             <span>
               <span className="id">
@@ -356,7 +357,7 @@ export function CommandPanel({
   onOpenGoal,
 }: {
   decisionsOnMove: number | null
-  onOpenGoal: (id: string) => void
+  onOpenGoal: (id: string, source: 'demo' | 'real') => void
 }) {
   const [slotId, setSlotId] = useState(ADVISOR_SLOTS[0].id)
   const [extra, setExtra] = useState<Record<string, ChatMsg[]>>({})
@@ -458,9 +459,9 @@ export function CommandPanel({
                   Не удалось загрузить карту целей
                 </div>
               ) : loading ? null : hasRealGoals ? (
-                <RealGoalMap forest={forest} />
+                <RealGoalMap forest={forest} onOpenGoal={(id) => onOpenGoal(id, 'real')} />
               ) : (
-                <DemoGoalMap onOpenGoal={onOpenGoal} />
+                <DemoGoalMap onOpenGoal={(id) => onOpenGoal(id, 'demo')} />
               )}
             </div>
           </div>

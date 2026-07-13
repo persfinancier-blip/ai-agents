@@ -11,15 +11,13 @@
 
 ## Активные
 
-| Файл | Что делает | Тип |
-|---|---|---|
-| `prompt-18-real-goal-card.md` | Шаг Ф2: карточка цели на реальных данных (read-only) — клик по реальному узлу карты, `RealGoalCard.tsx` рядом с демо-карточкой, KPI-планы (без процентов и факта), навигация вверх/вниз по дереву `parent_id`; без редактирования, ресурсов, карты процесса и связей KPI | код |
+Пока нет активных промптов.
 
-`prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-14-step3b-composite-kpi.md`, `prompt-15-workspace-platform-canon.md`, `prompt-16-repo-integrity-recovery.md`, `prompt-17-frontend-goal-map-binding.md` выполнены и слиты в `main` (см. `_done/`).
+`prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-14-step3b-composite-kpi.md`, `prompt-15-workspace-platform-canon.md`, `prompt-16-repo-integrity-recovery.md`, `prompt-17-frontend-goal-map-binding.md`, `prompt-18-real-goal-card.md` выполнены и слиты в `main` (см. `_done/`).
 
 ## Что дальше по плану
 
-- Следующие срезы фронта: карточка цели на реальных данных, редактирование целей из UI.
+- Следующие срезы фронта: редактирование целей из UI (create/patch/delete), советник по постановке цели.
 - Ресурсные блоки (Финансы/Персонал/Продажи/Товары/Производство) как предпосылка «факта» KPI (ADR-0005).
 
 ## История (в `_done/`)
@@ -28,4 +26,4 @@
 
 Канон: решения по увязке (ADR-0002), модель целей и KPI-сущность (ADR-0003), типы связей и циклы (ADR-0004), план/факт и клиентская архитектура (ADR-0005), Workspace Platform — рабочие пространства сущностей (направление).
 
-Код Goal: Шаг 1 (CRUD + туман/определён) → 2a (KPI как Сущность) → 2b (дерево `parent_id`) → 3-0 (diff-sync KPI) → 3a (граф связей `kpi_link`) → 3c (детект циклов `kpi_link_cycle`) → 3b (составной KPI `kpi_factor`) → Ф1 (карта целей на Goal API, read-only).
+Код Goal: Шаг 1 (CRUD + туман/определён) → 2a (KPI как Сущность) → 2b (дерево `parent_id`) → 3-0 (diff-sync KPI) → 3a (граф связей `kpi_link`) → 3c (детект циклов `kpi_link_cycle`) → 3b (составной KPI `kpi_factor`) → Ф1 (карта целей на Goal API, read-only) → Ф2 (карточка цели на реальных данных, read-only).
