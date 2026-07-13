@@ -11,7 +11,9 @@
 
 ## Активные
 
-Активных промптов нет — все выполнены и слиты в `main`.
+| Файл | Что делает | Тип |
+|---|---|---|
+| `prompt-18-real-goal-card.md` | Шаг Ф2: карточка цели на реальных данных (read-only) — клик по реальному узлу карты, `RealGoalCard.tsx` рядом с демо-карточкой, KPI-планы (без процентов и факта), навигация вверх/вниз по дереву `parent_id`; без редактирования, ресурсов, карты процесса и связей KPI | код |
 
 `prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-14-step3b-composite-kpi.md`, `prompt-15-workspace-platform-canon.md`, `prompt-16-repo-integrity-recovery.md`, `prompt-17-frontend-goal-map-binding.md` выполнены и слиты в `main` (см. `_done/`).
 
