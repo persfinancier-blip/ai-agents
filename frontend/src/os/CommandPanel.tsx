@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { listGoals } from '../api'
+import type { GoalRead } from '../types'
 import {
   ADVISOR_SLOTS,
   FOCUS_GOAL,
@@ -7,6 +9,8 @@ import {
   RAIL_OFF,
 } from './data'
 import type { ChatMsg, RailBlock } from './data'
+import { buildGoalForest, layoutForest } from './goalTree'
+import type { GoalNode } from './goalTree'
 
 const STROKE = 'rgba(228,227,223,.55)'
 
@@ -110,6 +114,243 @@ function RailButton({ b }: { b: RailBlock }) {
   )
 }
 
+/* ── реальная карта целей (Goal API, промпт №17) ─────────────────────────── */
+
+// Тон узла: туман — код «нет данных» (пунктир .g-next, D6); для определённых —
+// маппинг risk_level: low → обычный, medium → warn, high → risk. Прогресса на
+// карте нет сознательно: факт KPI появится только с ресурсными блоками (ADR-0005).
+const goalTone = (g: GoalRead): string => {
+  if (g.definiteness === 'fog') return ' g-next'
+  if (g.risk_level === 'high') return ' g-risk'
+  if (g.risk_level === 'medium') return ' g-warn'
+  return ''
+}
+
+const kpiLabel = (g: GoalRead): string =>
+  g.definiteness === 'fog' ? 'туман' : `${g.kpis.length} KPI`
+
+const ownerLabel = (g: GoalRead): string => `отв. ${g.owner.trim() === '' ? '—' : g.owner}`
+
+const countGoals = (nodes: GoalNode[]): number =>
+  nodes.reduce((acc, n) => acc + 1 + countGoals(n.children), 0)
+
+function RealGoalMap({ forest }: { forest: GoalNode[] }) {
+  const pos = layoutForest(forest)
+
+  // рёбра структурного дерева parent_id (связи KPI→KPI и циклы — не здесь: ADR-0004)
+  const edges: { key: string; x1: number; y1: number; x2: number; y2: number }[] = []
+  const walk = (node: GoalNode): void => {
+    const from = pos.get(node.goal.id)
+    for (const child of node.children) {
+      const to = pos.get(child.goal.id)
+      if (from && to) {
+        edges.push({
+          key: `${node.goal.id}-${child.goal.id}`,
+          x1: from.x + from.w,
+          y1: from.y + 38,
+          x2: to.x,
+          y2: to.y + 38,
+        })
+      }
+      walk(child)
+    }
+  }
+  forest.forEach(walk)
+
+  const nodes: GoalNode[] = []
+  const flatten = (node: GoalNode): void => {
+    nodes.push(node)
+    node.children.forEach(flatten)
+  }
+  forest.forEach(flatten)
+
+  const focus = forest[0]
+
+  return (
+    <>
+      <svg viewBox="0 0 1040 560">
+        {edges.map((e) => (
+          <line
+            key={e.key}
+            x1={e.x1}
+            y1={e.y1}
+            x2={e.x2}
+            y2={e.y2}
+            stroke="rgba(228,227,223,.25)"
+            strokeWidth="1.5"
+          />
+        ))}
+      </svg>
+
+      {nodes.map(({ goal: g }) => {
+        const p = pos.get(g.id)
+        if (!p) return null
+        return (
+          <button
+            key={g.id}
+            className={`gcard${goalTone(g)}`}
+            style={{ left: p.x, top: p.y, width: p.w }}
+            title="Карточка цели — следующий срез"
+          >
+            <span>
+              <span className="id">
+                ЦЕЛЬ · {g.definiteness === 'fog' ? 'туман' : 'определена'}
+              </span>
+              <span className="nm" style={{ display: 'block' }}>
+                {g.name}
+              </span>
+            </span>
+            <span className="bar">
+              <i />
+            </span>
+            <span className="ft">
+              <span>{kpiLabel(g)}</span>
+              <span>{ownerLabel(g)}</span>
+            </span>
+          </button>
+        )
+      })}
+
+      {focus && (
+        // Фокус-цель: первая корневая. Позиция фиксированная (правый нижний
+        // квадрант) — простая временная раскладка, как и вся карта этого среза.
+        <div className="gx" style={{ left: 620, top: 300, width: 400 }}>
+          <div className="hd">
+            <Icon name="hex" color="#e8c04a" />
+            <div>
+              <div className="t">{focus.goal.name}</div>
+              <div className="s">
+                {ownerLabel(focus.goal)} · {focus.goal.definiteness === 'fog' ? 'туман' : 'определена'}
+              </div>
+            </div>
+            <div className="pct">
+              <b>{focus.goal.kpis.length}</b>
+              <span>KPI</span>
+            </div>
+          </div>
+          {focus.children.length > 0 && (
+            <div className="stg">
+              <div className="cap">ЭТАПЫ — ПРЯМЫЕ ПОДЦЕЛИ</div>
+              {focus.children.map((child, i) => (
+                <div key={child.goal.id} className="srow">
+                  <span className="n">{i + 1}</span>
+                  {child.goal.name}
+                  <span className="who">{child.goal.owner.trim() === '' ? '—' : child.goal.owner}</span>
+                  <span className="st">{child.goal.definiteness === 'fog' ? 'туман' : 'определена'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ── демо-карта (пустая БД): контент data.ts, без изменений ──────────────── */
+
+function DemoGoalMap({ onOpenGoal }: { onOpenGoal: (id: string) => void }) {
+  return (
+    <>
+      <svg viewBox="0 0 1040 560">
+        <line x1="220" y1="96" x2="310" y2="96" stroke="#e8544a" strokeOpacity=".6" strokeWidth="1.6" strokeDasharray="5 6" className="flow" />
+        <polygon points="310,96 302,92 302,100" fill="#e8544a" fillOpacity=".7" />
+        <line x1="200" y1="330" x2="280" y2="330" stroke="#8fd14f" strokeOpacity=".55" strokeWidth="1.5" />
+        <polygon points="280,330 272,326 272,334" fill="#8fd14f" fillOpacity=".6" />
+        <line x1="420" y1="140" x2="890" y2="290" stroke="#e8c04a" strokeOpacity=".45" strokeWidth="1.5" strokeDasharray="5 6" className="flow" />
+        <line x1="710" y1="330" x2="790" y2="330" stroke="#e8c04a" strokeOpacity=".6" strokeWidth="1.6" strokeDasharray="5 6" className="flow" />
+        <polygon points="790,330 782,326 782,334" fill="#e8c04a" fillOpacity=".7" />
+        <text x="238" y="84" fill="rgba(232,84,74,.85)" fontSize="9" fontFamily="IBM Plex Mono">блокирует</text>
+        <text x="204" y="320" fill="rgba(143,209,79,.7)" fontSize="9" fontFamily="IBM Plex Mono">выполнена</text>
+        <text x="714" y="318" fill="rgba(232,192,74,.8)" fontSize="9" fontFamily="IBM Plex Mono">следующая</text>
+      </svg>
+
+      {MAP_GOALS.map((g) => (
+        <button
+          key={g.id}
+          className={`gcard g-${g.tone}`}
+          style={{ left: g.x, top: g.y, width: g.w }}
+          onClick={() => onOpenGoal(g.id)}
+        >
+          <span>
+            <span className="id">
+              {g.code} · {g.kind}
+            </span>
+            <span className="nm" style={{ display: 'block' }}>
+              {g.name}
+            </span>
+          </span>
+          <span className="bar">
+            <i
+              style={{
+                width: `${g.pct}%`,
+                background: g.tone === 'done' ? 'var(--gr)' : g.tone === 'warn' ? 'var(--op)' : g.tone === 'risk' ? 'var(--rk)' : 'transparent',
+              }}
+            />
+          </span>
+          <span className="ft">
+            <span style={g.tone === 'done' ? { color: 'var(--gr)' } : undefined}>{g.ft[0]}</span>
+            <span>{g.ft[1]}</span>
+          </span>
+        </button>
+      ))}
+
+      <div className="gx" style={{ left: FOCUS_GOAL.x, top: FOCUS_GOAL.y, width: FOCUS_GOAL.w }}>
+        <div className="hd">
+          <Icon name="hex" color="#e8c04a" />
+          <div>
+            <div className="t">{FOCUS_GOAL.name}</div>
+            <div className="s">
+              {FOCUS_GOAL.sub}{' '}
+              <span className="dot pulse" style={{ background: 'var(--op)', verticalAlign: 'middle', marginLeft: 4 }} />
+            </div>
+          </div>
+          <div className="pct">
+            <b>{FOCUS_GOAL.pct}%</b>
+            <span>прогресс</span>
+          </div>
+        </div>
+        <div className="bar">
+          <i />
+        </div>
+        <div className="stg">
+          <div className="cap">ЭТАПЫ — БИЗНЕС-ПРОЦЕСС ЦЕЛИ</div>
+          {FOCUS_GOAL.stages.map((s) => (
+            <div key={s.name} className={`srow ${s.state}`}>
+              <span className="n">{s.n}</span>
+              {s.name}
+              <span className="who">
+                {s.whoKind === 'human' && <HumanDot />}
+                {s.whoKind === 'ai' && <AiDot />}
+                {s.who}
+              </span>
+              <span className="st">{s.st}</span>
+            </div>
+          ))}
+        </div>
+        <div className="ft">
+          <span>
+            ресурсы: <b>{FOCUS_GOAL.ft.res}</b>
+          </span>
+          <span>
+            команда: <b>{FOCUS_GOAL.ft.team}</b>
+          </span>
+          <span>
+            решения: <b>{FOCUS_GOAL.ft.dec}</b>
+          </span>
+          <button className="open" onClick={() => onOpenGoal('g14')}>
+            карточка цели →
+          </button>
+        </div>
+      </div>
+
+      <div className="fog" style={{ left: 790, top: 430, width: 225, height: 90 }}>
+        БУДУЩИЕ ЦЕЛИ · НЕТ ДАННЫХ
+      </div>
+    </>
+  )
+}
+
 export function CommandPanel({
   decisionsOnMove,
   onOpenGoal,
@@ -120,6 +361,28 @@ export function CommandPanel({
   const [slotId, setSlotId] = useState(ADVISOR_SLOTS[0].id)
   const [extra, setExtra] = useState<Record<string, ChatMsg[]>>({})
   const [text, setText] = useState('')
+
+  // реальные цели: null — загрузка; [] и далее — ответ API; error — отказ сети/бэка
+  const [goals, setGoals] = useState<GoalRead[] | null>(null)
+  const [goalsError, setGoalsError] = useState(false)
+
+  useEffect(() => {
+    listGoals()
+      .then(setGoals)
+      .catch(() => setGoalsError(true))
+  }, [])
+
+  const forest = buildGoalForest(goals ?? [])
+  const hasRealGoals = forest.length > 0
+  const loading = goals === null && !goalsError
+
+  const mapLabel = goalsError
+    ? 'КАРТА ЦЕЛЕЙ'
+    : loading
+      ? 'КАРТА ЦЕЛЕЙ · ЗАГРУЗКА…'
+      : hasRealGoals
+        ? `КАРТА ЦЕЛЕЙ · УЗЛОВ: ${countGoals(forest)}`
+        : 'КАРТА ЦЕЛЕЙ · ЦЕПОЧКА-ПРОЦЕСС · 6 ЦЕЛЕЙ, 5 СВЯЗЕЙ · ДЕМО-ДАННЫЕ'
 
   const slot = ADVISOR_SLOTS.find((s) => s.id === slotId) ?? ADVISOR_SLOTS[0]
   const chat = [...slot.chat, ...(extra[slot.id] ?? [])]
@@ -187,104 +450,18 @@ export function CommandPanel({
             СВОДКА · BI <span>◂</span>
           </div>
           <div className="stage">
-            <div className="maplbl">КАРТА ЦЕЛЕЙ · ЦЕПОЧКА-ПРОЦЕСС · 6 ЦЕЛЕЙ, 5 СВЯЗЕЙ</div>
+            <div className="maplbl">{mapLabel}</div>
 
             <div className="canvas">
-              <svg viewBox="0 0 1040 560">
-                <line x1="220" y1="96" x2="310" y2="96" stroke="#e8544a" strokeOpacity=".6" strokeWidth="1.6" strokeDasharray="5 6" className="flow" />
-                <polygon points="310,96 302,92 302,100" fill="#e8544a" fillOpacity=".7" />
-                <line x1="200" y1="330" x2="280" y2="330" stroke="#8fd14f" strokeOpacity=".55" strokeWidth="1.5" />
-                <polygon points="280,330 272,326 272,334" fill="#8fd14f" fillOpacity=".6" />
-                <line x1="420" y1="140" x2="890" y2="290" stroke="#e8c04a" strokeOpacity=".45" strokeWidth="1.5" strokeDasharray="5 6" className="flow" />
-                <line x1="710" y1="330" x2="790" y2="330" stroke="#e8c04a" strokeOpacity=".6" strokeWidth="1.6" strokeDasharray="5 6" className="flow" />
-                <polygon points="790,330 782,326 782,334" fill="#e8c04a" fillOpacity=".7" />
-                <text x="238" y="84" fill="rgba(232,84,74,.85)" fontSize="9" fontFamily="IBM Plex Mono">блокирует</text>
-                <text x="204" y="320" fill="rgba(143,209,79,.7)" fontSize="9" fontFamily="IBM Plex Mono">выполнена</text>
-                <text x="714" y="318" fill="rgba(232,192,74,.8)" fontSize="9" fontFamily="IBM Plex Mono">следующая</text>
-              </svg>
-
-              {MAP_GOALS.map((g) => (
-                <button
-                  key={g.id}
-                  className={`gcard g-${g.tone}`}
-                  style={{ left: g.x, top: g.y, width: g.w }}
-                  onClick={() => onOpenGoal(g.id)}
-                >
-                  <span>
-                    <span className="id">
-                      {g.code} · {g.kind}
-                    </span>
-                    <span className="nm" style={{ display: 'block' }}>
-                      {g.name}
-                    </span>
-                  </span>
-                  <span className="bar">
-                    <i
-                      style={{
-                        width: `${g.pct}%`,
-                        background: g.tone === 'done' ? 'var(--gr)' : g.tone === 'warn' ? 'var(--op)' : g.tone === 'risk' ? 'var(--rk)' : 'transparent',
-                      }}
-                    />
-                  </span>
-                  <span className="ft">
-                    <span style={g.tone === 'done' ? { color: 'var(--gr)' } : undefined}>{g.ft[0]}</span>
-                    <span>{g.ft[1]}</span>
-                  </span>
-                </button>
-              ))}
-
-              <div className="gx" style={{ left: FOCUS_GOAL.x, top: FOCUS_GOAL.y, width: FOCUS_GOAL.w }}>
-                <div className="hd">
-                  <Icon name="hex" color="#e8c04a" />
-                  <div>
-                    <div className="t">{FOCUS_GOAL.name}</div>
-                    <div className="s">
-                      {FOCUS_GOAL.sub}{' '}
-                      <span className="dot pulse" style={{ background: 'var(--op)', verticalAlign: 'middle', marginLeft: 4 }} />
-                    </div>
-                  </div>
-                  <div className="pct">
-                    <b>{FOCUS_GOAL.pct}%</b>
-                    <span>прогресс</span>
-                  </div>
+              {goalsError ? (
+                <div style={{ position: 'absolute', left: 20, top: 56, color: 'var(--i55)' }}>
+                  Не удалось загрузить карту целей
                 </div>
-                <div className="bar">
-                  <i />
-                </div>
-                <div className="stg">
-                  <div className="cap">ЭТАПЫ — БИЗНЕС-ПРОЦЕСС ЦЕЛИ</div>
-                  {FOCUS_GOAL.stages.map((s) => (
-                    <div key={s.name} className={`srow ${s.state}`}>
-                      <span className="n">{s.n}</span>
-                      {s.name}
-                      <span className="who">
-                        {s.whoKind === 'human' && <HumanDot />}
-                        {s.whoKind === 'ai' && <AiDot />}
-                        {s.who}
-                      </span>
-                      <span className="st">{s.st}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="ft">
-                  <span>
-                    ресурсы: <b>{FOCUS_GOAL.ft.res}</b>
-                  </span>
-                  <span>
-                    команда: <b>{FOCUS_GOAL.ft.team}</b>
-                  </span>
-                  <span>
-                    решения: <b>{FOCUS_GOAL.ft.dec}</b>
-                  </span>
-                  <button className="open" onClick={() => onOpenGoal('g14')}>
-                    карточка цели →
-                  </button>
-                </div>
-              </div>
-
-              <div className="fog" style={{ left: 790, top: 430, width: 225, height: 90 }}>
-                БУДУЩИЕ ЦЕЛИ · НЕТ ДАННЫХ
-              </div>
+              ) : loading ? null : hasRealGoals ? (
+                <RealGoalMap forest={forest} />
+              ) : (
+                <DemoGoalMap onOpenGoal={onOpenGoal} />
+              )}
             </div>
           </div>
         </div>

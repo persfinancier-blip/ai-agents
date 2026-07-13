@@ -1,4 +1,4 @@
-import type { BoardOpinionRead, DecisionCreate, DecisionRead } from './types'
+import type { BoardOpinionRead, DecisionCreate, DecisionRead, GoalRead } from './types'
 
 const BASE = '/api/v1'
 
@@ -26,3 +26,11 @@ export const analyzeDecision = (id: string) =>
   request<BoardOpinionRead>(`/decisions/${id}/analyze`, { method: 'POST' })
 
 export const getBoard = (id: string) => request<BoardOpinionRead[]>(`/decisions/${id}/board`)
+
+/* Goal API (промпт №17, read-only срез) */
+
+export const listGoals = () => request<GoalRead[]>('/goals')
+
+export const getGoal = (id: string) => request<GoalRead>(`/goals/${id}`)
+
+export const getGoalSubtree = (id: string) => request<GoalRead[]>(`/goals/${id}/subtree`)
