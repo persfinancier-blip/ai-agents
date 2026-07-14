@@ -11,7 +11,9 @@
 
 ## Активные
 
-Активных промптов нет — №20 (рестайл v2) выполнен и слит.
+| Файл | Что делает | Тип |
+|---|---|---|
+| `prompt-21-v2-polish.md` | Полировка шкуры v2 по ревью as-built: rail и нижний HUD без «рамок» (плавающие капсулы), mono только для чисел/кодов, читаемые рёбра дерева, имена узлов в одну строку. Ровно четыре правки, логика нетронута | код |
 
 `prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-14-step3b-composite-kpi.md`, `prompt-15-workspace-platform-canon.md`, `prompt-16-repo-integrity-recovery.md`, `prompt-17-frontend-goal-map-binding.md`, `prompt-18-real-goal-card.md`, `prompt-19-design-canon-v2.md`, `prompt-20-restyle-v2.md` выполнены и слиты в `main` (см. `_done/`).
 
