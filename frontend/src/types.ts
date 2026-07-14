@@ -68,3 +68,29 @@ export interface GoalRead {
   created_at: string
   updated_at: string
 }
+
+/* Ф3 — редактирование (промпт №22): зеркало GoalCreate/GoalPatch/GoalKpi (write-часть) */
+
+export interface GoalKpiWrite {
+  id: string | null
+  name: string
+  target: number | null
+  unit: string
+}
+
+export interface GoalCreate {
+  name: string
+  owner?: string
+  description?: string | null
+  kpis?: GoalKpiWrite[]
+  parent_id?: string | null
+}
+
+export interface GoalPatch {
+  name?: string
+  description?: string | null
+  owner?: string
+  kpis?: GoalKpiWrite[]
+  is_backlog?: boolean
+  parent_id?: string | null
+}

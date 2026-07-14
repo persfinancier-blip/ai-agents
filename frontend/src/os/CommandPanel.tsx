@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { listGoals } from '../api'
+import { useEffect, useRef, useState } from 'react'
+import type { MouseEvent as ReactMouseEvent } from 'react'
+import { ApiError, createGoal, listGoals } from '../api'
 import type { GoalRead } from '../types'
 import { AdvisorOrb } from './AdvisorOrb'
 import {
@@ -422,6 +423,15 @@ export function CommandPanel({
   const [goals, setGoals] = useState<GoalRead[] | null>(null)
   const [goalsError, setGoalsError] = useState(false)
 
+  // Ф3 (промпт №22): черновик-узел двойного клика по полотну — координаты клика
+  // живут только тут, до сохранения; поля «позиция узла» в модели нет и не будет
+  // (см. goalTree.ts) — после POST карта перезагружается и узел встаёт по автораскладке.
+  const [draft, setDraft] = useState<{ x: number; y: number; name: string; saving: boolean; error: string | null } | null>(
+    null,
+  )
+  const skipDraftBlur = useRef(false)
+  const draftInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     listGoals()
       .then(setGoals)
@@ -471,6 +481,42 @@ export function CommandPanel({
     setAdvisorOpen(true)
   }
 
+  // Ф3: двойной клик по пустому полотну — черновик-узел с инлайн-вводом имени.
+  // Клик по существующему узлу/кнопке не должен запускать создание.
+  const onCanvasDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (loading || goalsError || draft) return
+    const target = e.target as HTMLElement
+    if (target.closest('button, .gcard, .gx')) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = Math.min(Math.max(e.clientX - rect.left, 10), 1040 - 260)
+    const y = Math.min(Math.max(e.clientY - rect.top, 10), 560 - 60)
+    setDraft({ x, y, name: '', saving: false, error: null })
+  }
+
+  const submitDraft = () => {
+    if (!draft) return
+    const name = draft.name.trim()
+    if (!name) {
+      setDraft(null)
+      return
+    }
+    setDraft({ ...draft, saving: true, error: null })
+    createGoal({ name })
+      .then(() => listGoals())
+      .then((fresh) => {
+        setGoals(fresh)
+        setDraft(null)
+      })
+      .catch((err: unknown) => {
+        setDraft((d) =>
+          d ? { ...d, saving: false, error: err instanceof ApiError ? 'Не удалось создать цель' : 'Нет связи с сервером' } : d,
+        )
+        // disabled={saving} снимает фокус с инпута — при отказе возвращаем его,
+        // чтобы можно было сразу поправить имя и повторить попытку
+        requestAnimationFrame(() => draftInputRef.current?.focus())
+      })
+  }
+
   return (
     <div className="os-panel">
       <header className="top">
@@ -515,7 +561,7 @@ export function CommandPanel({
           <div className={`stage${advisorOpen ? ' blurred' : ''}`}>
             <div className="maplbl">{mapLabel}</div>
 
-            <div className="canvas">
+            <div className="canvas" onDoubleClick={onCanvasDoubleClick}>
               {goalsError ? (
                 <div style={{ position: 'absolute', left: 20, top: 56, color: 'var(--i55)' }}>
                   Не удалось загрузить карту целей
@@ -524,6 +570,39 @@ export function CommandPanel({
                 <RealGoalMap forest={forest} onOpenGoal={(id) => onOpenGoal(id, 'real')} />
               ) : (
                 <DemoGoalMap onOpenGoal={(id) => onOpenGoal(id, 'demo')} />
+              )}
+
+              {draft && (
+                <div className="gcard hazy gdraft" style={{ left: draft.x, top: draft.y, width: 250 }}>
+                  <input
+                    ref={draftInputRef}
+                    aria-label="Название новой цели"
+                    placeholder="название цели…"
+                    autoFocus
+                    disabled={draft.saving}
+                    value={draft.name}
+                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault()
+                        skipDraftBlur.current = true
+                        setDraft(null)
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault()
+                        skipDraftBlur.current = true
+                        submitDraft()
+                      }
+                    }}
+                    onBlur={() => {
+                      if (skipDraftBlur.current) {
+                        skipDraftBlur.current = false
+                        return
+                      }
+                      submitDraft()
+                    }}
+                  />
+                  {draft.error && <div className="derr">{draft.error}</div>}
+                </div>
               )}
             </div>
           </div>
