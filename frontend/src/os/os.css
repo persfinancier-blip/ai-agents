@@ -350,6 +350,30 @@
   color: var(--i45);
 }
 
+/* Ф3 — черновик-узел двойного клика (промпт №22): инлайн-ввод имени
+   поверх точки клика, до сохранения — координаты нигде не хранятся */
+.os-panel .gdraft input {
+  width: 100%;
+  font: 600 13px var(--sans);
+  color: var(--ink);
+  background: var(--sf2);
+  border: 1px solid var(--ln);
+  border-radius: var(--r-badge);
+  padding: 6px 9px;
+}
+.os-panel .gdraft input::placeholder {
+  color: var(--i35);
+}
+.os-panel .gdraft input:focus-visible {
+  outline: 2px solid var(--gr);
+  outline-offset: 1px;
+}
+.os-panel .gdraft .derr {
+  margin-top: 6px;
+  font: 500 10.5px var(--mono);
+  color: var(--rk);
+}
+
 /* expanded/выделенная цель — фиолетовая обводка со свечением */
 
 .os-panel .gx {
@@ -1499,6 +1523,27 @@
 .os-goal .abtn .ghost {
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: var(--i55);
+}
+
+/* Ф3 — инлайн-правка (промпт №22): единый стиль поля ввода поверх текста,
+   .big/.mono — размер под заголовок/подпись, база — под строку KPI */
+.os-goal .edit {
+  font: 400 12px var(--sans);
+  color: var(--ink);
+  background: var(--sf2);
+  border: 1px solid var(--ln);
+  border-radius: var(--r-badge);
+  padding: 3px 8px;
+}
+.os-goal .edit::placeholder {
+  color: var(--i35);
+}
+.os-goal .edit.big {
+  font: 700 22px var(--sans);
+  padding: 3px 10px;
+}
+.os-goal .edit.mono {
+  font: 500 12px var(--mono);
 }
 
 .os-goal .ainp {

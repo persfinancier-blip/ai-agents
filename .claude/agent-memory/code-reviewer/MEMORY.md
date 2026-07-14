@@ -1,0 +1,3 @@
+- [Skip-blur ref-guard pattern](feedback_skip-blur-pattern.md) — validated repo idiom for inline-edit Escape/Enter vs blur; check disable-vs-unmount timing per usage
+- [Composite KPI mutation guards](feedback_composite-kpi-mutation-guards.md) — check ALL mutation affordances (delete, not just edit) on computed/composite entity rows
+- [Goal-map Ф-series context](project_goal-map-f-series.md) — Ф1-Ф3 are frontend-only slices atop an already-complete Goal API; "backend untouched" is expected, not a gap

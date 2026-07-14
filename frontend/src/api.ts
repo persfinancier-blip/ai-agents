@@ -1,4 +1,4 @@
-import type { BoardOpinionRead, DecisionCreate, DecisionRead, GoalRead } from './types'
+import type { BoardOpinionRead, DecisionCreate, DecisionRead, GoalCreate, GoalPatch, GoalRead } from './types'
 
 const BASE = '/api/v1'
 
@@ -45,3 +45,14 @@ export const listGoals = () => request<GoalRead[]>('/goals')
 export const getGoal = (id: string) => request<GoalRead>(`/goals/${id}`)
 
 export const getGoalSubtree = (id: string) => request<GoalRead[]>(`/goals/${id}/subtree`)
+
+/* Ф3 — редактирование (промпт №22): create/patch/delete, backend не менялся */
+
+export const createGoal = (payload: GoalCreate) =>
+  request<GoalRead>('/goals', { method: 'POST', body: JSON.stringify(payload) })
+
+export const patchGoal = (id: string, payload: GoalPatch) =>
+  request<GoalRead>(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+
+export const deleteGoal = (id: string, cascade = false) =>
+  request<void>(`/goals/${id}${cascade ? '?cascade=true' : ''}`, { method: 'DELETE' })
