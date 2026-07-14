@@ -207,12 +207,17 @@ function RealGoalMap({ forest, onOpenGoal }: { forest: GoalNode[]; onOpenGoal: (
             x2={e.x2}
             y2={e.y2}
             stroke={e.color}
-            strokeOpacity={e.fog ? '.3' : '.5'}
+            strokeOpacity={e.fog ? '.3' : '.55'}
             strokeWidth="1.5"
             strokeDasharray="5 6"
             className={e.fog ? undefined : 'flow'}
           />
         ))}
+        {edges
+          .filter((e) => !e.fog)
+          .map((e) => (
+            <circle key={`${e.key}-pp`} cx={(e.x1 + e.x2) / 2} cy={(e.y1 + e.y2) / 2} r="3.5" fill={e.color} className="pulse" />
+          ))}
       </svg>
 
       {nodes.map(({ goal: g }) => {
@@ -233,7 +238,9 @@ function RealGoalMap({ forest, onOpenGoal }: { forest: GoalNode[]; onOpenGoal: (
                 <Icon name="hex" color={bs.fg} />
               </span>
               <span className="txt">
-                <span className="nm">{g.name}</span>
+                <span className="nm" title={g.name}>
+                  {g.name}
+                </span>
                 <span className="sb">
                   {ownerLabel(g)} · {fog ? 'туман' : 'определена'}
                 </span>
@@ -295,6 +302,9 @@ function DemoGoalMap({ onOpenGoal }: { onOpenGoal: (id: string) => void }) {
         <line x1="420" y1="140" x2="890" y2="290" stroke="var(--op)" strokeOpacity=".45" strokeWidth="1.5" strokeDasharray="5 6" className="flow" />
         <line x1="710" y1="330" x2="790" y2="330" stroke="var(--op)" strokeOpacity=".6" strokeWidth="1.6" strokeDasharray="5 6" className="flow" />
         <polygon points="790,330 782,326 782,334" fill="var(--op)" fillOpacity=".7" />
+        <circle cx="265" cy="96" r="3.5" fill="var(--rk)" className="pulse" />
+        <circle cx="655" cy="215" r="3.5" fill="var(--op)" className="pulse" />
+        <circle cx="750" cy="330" r="3.5" fill="var(--op)" className="pulse" />
         <text x="238" y="84" fill="rgba(232,84,74,.85)" fontSize="9" fontFamily="IBM Plex Mono">блокирует</text>
         <text x="204" y="320" fill="rgba(143,209,79,.7)" fontSize="9" fontFamily="IBM Plex Mono">выполнена</text>
         <text x="714" y="318" fill="rgba(232,192,74,.8)" fontSize="9" fontFamily="IBM Plex Mono">следующая</text>
@@ -315,7 +325,9 @@ function DemoGoalMap({ onOpenGoal }: { onOpenGoal: (id: string) => void }) {
                 <Icon name="hex" color={bs.fg} />
               </span>
               <span className="txt">
-                <span className="nm">{g.name}</span>
+                <span className="nm" title={g.name}>
+                  {g.name}
+                </span>
                 <span className="sb">{g.ft[1]}</span>
               </span>
               <span className="kp" style={g.tone === 'done' ? { color: 'var(--gr)' } : undefined}>
@@ -608,7 +620,7 @@ export function CommandPanel({
       </div>
 
       <footer className="bot">
-        <div className="l">
+        <div className="pod l">
           <span className="m">
             ВЫРУЧКА ПРОГНОЗ <b>96</b> / 120 млн ₽ <span className="dn">−8%</span>
           </span>
@@ -616,13 +628,15 @@ export function CommandPanel({
             КАССА <b>11 нед</b> <span className="dn">▼</span>
           </span>
           <span className="m">
-            РЕШЕНИЯ НА ХОДУ <b>{decisionsOnMove ?? '—'}</b>
-          </span>
-          <span className="m">
             ЮНИТЫ <b>4</b> <span style={{ color: 'var(--i40)' }}>+ 5 AI</span> · приёмка <b className="up">84%</b>
           </span>
         </div>
-        <div className="hp">
+        <div className="pod">
+          <span className="m">
+            РЕШЕНИЯ НА ХОДУ <b>{decisionsOnMove ?? '—'}</b>
+          </span>
+        </div>
+        <div className="pod hp">
           <span className="m">HEALTH</span>
           <span className="tr">
             <i />
