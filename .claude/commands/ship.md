@@ -1,14 +1,14 @@
 ---
-description: Прогнать Definition of Done — проверки обеих сторон, гигиена доков, предложить Conventional Commit
+description: Run the Definition of Done — checks on both sides, doc hygiene, propose a Conventional Commit
 allowed-tools: Bash, Read, Grep, Glob, Edit
 ---
 
-Прогони Definition of Done текущей работы, по шагам, с полным отчётом:
+Run the Definition of Done for the current work, step by step, with a full report:
 
-1. **Backend** (из `backend/`, через `.venv`): `ruff check .`, `ruff format --check .`, `mypy app`, `pytest -q`. Все четыре обязаны быть зелёными.
-2. **Frontend** (из `frontend/`): `npm run build`, `npm run lint`.
-3. **Доки**: если проход трогал `docs/` — проверь, что обновлены `docs/full-vision/INDEX.md` и `docs/full-vision/00_CHANGELOG_docs_cleanup.md`; в любом случае предложи запись в `docs/DEVLOG.md` (как в `/devlog`).
-4. **Дифф**: покажи `git status --short` и суть диффа; убедись, что в него не попал мусор (кэши, .env, случайные файлы) и что ветка — не `main`.
-5. **Коммит**: предложи сообщение по Conventional Commits (`feat:`/`fix:`/`chore:`/`docs:`/`test:` + короткое тело: что и зачем). Сам коммит делай только после подтверждения пользователя.
+1. **Backend** (from `backend/`, via `.venv`): `ruff check .`, `ruff format --check .`, `mypy app`, `pytest -q`. All four must be green.
+2. **Frontend** (from `frontend/`): `npm run build`, `npm run lint`.
+3. **Docs**: if the pass touched `docs/` — check that `docs/full-vision/INDEX.md` and `docs/full-vision/00_CHANGELOG_docs_cleanup.md` are updated; regardless, propose an entry for `docs/DEVLOG.md` (as in `/devlog`).
+4. **Diff**: show `git status --short` and the gist of the diff; confirm no junk got in (caches, .env, stray files) and that the branch isn't `main`.
+5. **Commit**: propose a Conventional Commits message (`feat:`/`fix:`/`chore:`/`docs:`/`test:` + a short body: what and why). Only make the commit itself after the user confirms.
 
-Если какой-то шаг красный — остановись на нём, покажи ошибку и предложи починку; не предлагай коммит поверх красных проверок. $ARGUMENTS — уточнение объёма (например, «только backend»).
+If any step is red, stop there, show the error, and propose a fix — don't propose a commit on top of red checks. $ARGUMENTS narrows the scope (e.g. "backend only").

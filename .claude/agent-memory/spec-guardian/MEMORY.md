@@ -1,0 +1,1 @@
+- [i18n operational-files split](project_i18n-operational-files.md) — English `.claude/**`/CLAUDE.md/COWORK.md vs Russian docs/**; known intentional Russian-literal exceptions (templates, "Язык файлов" bullet)
