@@ -73,7 +73,7 @@
 }
 
 .os-panel .crumb {
-  font: 500 12px var(--mono);
+  font: 400 12px var(--sans);
   color: var(--i35);
 }
 
@@ -93,14 +93,14 @@
 
 .os-panel .rmeta {
   padding: 8px 16px;
-  font: 500 11.5px var(--mono);
+  font: 400 11.5px var(--sans);
   color: var(--i45);
   white-space: nowrap;
 }
 
 .os-panel .rmeta b {
+  font: 500 11.5px var(--mono);
   color: var(--ink);
-  font-weight: 500;
 }
 
 .os-panel .ava {
@@ -123,20 +123,17 @@
   min-height: 0;
 }
 
-/* ── rail: компактная плавающая колонка блоков фирмы ── */
+/* ── rail: компактная плавающая колонка блоков фирмы (без общей
+   подложки-простыни — каждая кнопка своя плавающая капсула) ── */
 
 .os-panel .rail {
   width: 190px;
   flex: none;
   margin: 8px 0 16px 16px;
-  background: var(--sf);
-  border: 1px solid var(--ln);
-  border-radius: var(--r-card);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  padding: 14px 10px;
+  padding: 4px 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   overflow-y: auto;
 }
 
@@ -144,23 +141,25 @@
   font: 500 10px var(--mono);
   color: var(--i35);
   letter-spacing: 0.08em;
-  padding: 0 8px 8px;
+  padding: 0 8px 2px;
 }
 
 .os-panel .rail .cap2 {
   font: 500 10px var(--mono);
   color: var(--i35);
   letter-spacing: 0.08em;
-  padding: 14px 8px 8px;
+  padding: 10px 8px 2px;
 }
 
 .os-panel .rail button {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 8px;
-  border-radius: var(--r-badge);
-  border: 1px solid transparent;
+  padding: 8px 10px;
+  border-radius: var(--r-card);
+  border: 1px solid var(--ln);
+  background: var(--sf);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
   color: var(--i55);
   font: 500 12px var(--sans);
   text-align: left;
@@ -298,7 +297,9 @@
   font: 600 13px var(--sans);
   color: var(--ink);
   line-height: 1.25;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .os-panel .sb {
@@ -861,17 +862,24 @@
   flex: none;
 }
 
-/* ── bottom: пилюля-бар ── */
+/* ── bottom: плавающие капсулы вместо сплошного бара ── */
 
 .os-panel .bot {
-  height: 44px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
+.os-panel .bot .pod {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
   gap: 16px;
   padding: 0 20px;
-  margin: 0 16px 16px;
   border: 1px solid var(--ln);
   border-radius: var(--r-pill);
   background: var(--sf2);
