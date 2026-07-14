@@ -1991,3 +1991,285 @@
   color: var(--i35);
   margin-top: 8px;
 }
+
+/* ═══════════ канвас постановки цели (Ф4, промпт №23) ═══════════
+   Цвет типа связи — новый локальный канал на этом экране (переиспользует
+   существующие --id-* токены, не заводит новых); отклонение зафиксировано
+   в ADR-0004. Циклы красятся статус-семантикой D6 (риск/внимание) —
+   переиспользование, не новый канал. */
+
+.gcanvas-wrap {
+  display: grid;
+  grid-template-columns: 220px 1fr 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.gcanvas-center {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  font: 500 10.5px var(--mono);
+  color: var(--i40);
+}
+
+.gc-lt-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.gc-lt-dot.lt-contributes {
+  background: var(--id-cyan);
+}
+.gc-lt-dot.lt-constrains {
+  background: var(--id-orange);
+}
+.gc-lt-dot.lt-depends {
+  background: var(--id-blue);
+}
+.gc-lt-dot.gc-factor-dot {
+  background: var(--i35);
+}
+.gc-lt-dot.gc-cycle-risk-dot {
+  background: var(--rk);
+}
+
+.gcanvas-stage {
+  position: relative;
+  margin: 0 auto;
+  background: var(--sf0);
+  border: 1px solid var(--ln);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.gcanvas-stage > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.gc-struct {
+  stroke: var(--i25);
+  stroke-width: 1.4;
+}
+.gc-struct.fog {
+  stroke-dasharray: 5 6;
+  stroke-opacity: 0.6;
+}
+
+.gc-factor {
+  stroke: var(--i35);
+  stroke-width: 1.3;
+  stroke-dasharray: 4 5;
+}
+.gc-weight {
+  fill: var(--i40);
+  font: 500 9px var(--mono);
+}
+
+.gc-edge {
+  stroke-width: 1.8;
+  fill: var(--i35);
+}
+.gc-edge.lt-contributes {
+  stroke: var(--id-cyan);
+  fill: var(--id-cyan);
+}
+.gc-edge.lt-constrains {
+  stroke: var(--id-orange);
+  fill: var(--id-orange);
+}
+.gc-edge.lt-depends {
+  stroke: var(--id-blue);
+  fill: var(--id-blue);
+}
+.gc-edge.gc-cycle-warn {
+  stroke: var(--op);
+  fill: var(--op);
+  stroke-width: 2.2;
+}
+.gc-edge.gc-cycle-risk {
+  stroke: var(--rk);
+  fill: var(--rk);
+  stroke-width: 2.2;
+  stroke-dasharray: 5 6;
+  animation: os-flow 1.6s linear infinite;
+}
+
+.gc-edge-hit {
+  stroke: transparent;
+  stroke-width: 14px;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+.gc-edge-hit:focus-visible {
+  outline: 2px solid var(--gr);
+  outline-offset: 2px;
+}
+
+.gc-center,
+.gc-kpi,
+.gc-sub,
+.gc-sat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.gc-center {
+  width: 230px;
+  background: var(--sf);
+  border: 1px solid rgba(168, 85, 247, 0.55);
+  border-radius: var(--r-card);
+  box-shadow:
+    0 0 0 3px rgba(168, 85, 247, 0.1),
+    0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.gc-center .nm {
+  font: 700 15px var(--sans);
+  color: var(--ink);
+}
+.gc-center .sb {
+  font: 500 11px var(--mono);
+  color: var(--i45);
+}
+
+.gc-kpi,
+.gc-sub,
+.gc-sat {
+  width: 158px;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  border-radius: var(--r-badge);
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+.gc-kpi .nm,
+.gc-sub .nm,
+.gc-sat .nm {
+  font: 600 11.5px var(--sans);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gc-kpi .sb,
+.gc-sub .sb,
+.gc-sat .sb {
+  font: 500 10px var(--mono);
+  color: var(--i40);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gc-kpi:hover,
+.gc-sub:hover,
+.gc-sat:hover {
+  border-color: rgba(168, 85, 247, 0.4);
+}
+.gc-kpi.composite {
+  border-style: dashed;
+}
+.gc-sub.hazy {
+  border-style: dashed;
+  border-color: var(--i25);
+  background: rgba(20, 22, 29, 0.7);
+}
+.gc-sat {
+  width: 148px;
+  background: var(--sf2);
+}
+.gc-kpi.gc-cycle-risk,
+.gc-sat.gc-cycle-risk {
+  border-color: rgba(232, 84, 74, 0.6);
+  box-shadow:
+    0 0 0 3px rgba(232, 84, 74, 0.12),
+    0 6px 16px rgba(0, 0, 0, 0.3);
+}
+.gc-kpi.gc-cycle-warn,
+.gc-sat.gc-cycle-warn {
+  border-color: rgba(232, 192, 74, 0.6);
+  box-shadow:
+    0 0 0 3px rgba(232, 192, 74, 0.12),
+    0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.gc-cycles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gc-popover {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  z-index: 3;
+  width: 260px;
+  background: var(--sf2);
+  border: 1px solid var(--ln);
+  border-radius: var(--r-card);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gc-popover .rpool {
+  max-height: 220px;
+}
+
+.gc-linktypes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gc-lt {
+  padding: 8px 10px;
+  border-radius: var(--r-badge);
+  border: 1px solid var(--ln);
+  text-align: left;
+  font: 500 12px var(--sans);
+  color: var(--i55);
+}
+.gc-lt-contributes:hover {
+  border-color: rgba(34, 211, 238, 0.5);
+  color: var(--id-cyan);
+}
+.gc-lt-constrains:hover {
+  border-color: rgba(251, 146, 60, 0.5);
+  color: var(--id-orange);
+}
+.gc-lt-depends:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  color: var(--id-blue);
+}
+
+@media (max-width: 1200px) {
+  .gcanvas-wrap {
+    grid-template-columns: 1fr;
+  }
+}

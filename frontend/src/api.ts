@@ -1,4 +1,15 @@
-import type { BoardOpinionRead, DecisionCreate, DecisionRead, GoalCreate, GoalPatch, GoalRead } from './types'
+import type {
+  BoardOpinionRead,
+  DecisionCreate,
+  DecisionRead,
+  GoalCreate,
+  GoalPatch,
+  GoalRead,
+  KpiFactorRead,
+  KpiLinkCreate,
+  KpiLinkCycleRead,
+  KpiLinkRead,
+} from './types'
 
 const BASE = '/api/v1'
 
@@ -56,3 +67,25 @@ export const patchGoal = (id: string, payload: GoalPatch) =>
 
 export const deleteGoal = (id: string, cascade = false) =>
   request<void>(`/goals/${id}${cascade ? '?cascade=true' : ''}`, { method: 'DELETE' })
+
+/* Ф4 — канвас постановки (промпт №23): связи KPI→KPI, циклы, факторы композита.
+   Backend не менялся — все роуты уже были (Шаги 3a/3b/3c). */
+
+export const listKpiLinksForKpi = (kpiId: string) =>
+  request<KpiLinkRead[]>(`/kpi-links?kpi_id=${encodeURIComponent(kpiId)}`)
+
+export const createKpiLink = (payload: KpiLinkCreate) =>
+  request<KpiLinkRead>('/kpi-links', { method: 'POST', body: JSON.stringify(payload) })
+
+export const deleteKpiLink = (id: string) => request<void>(`/kpi-links/${id}`, { method: 'DELETE' })
+
+export const listKpiLinkCycles = () => request<KpiLinkCycleRead[]>('/kpi-links/cycles')
+
+export const confirmKpiLinkCycle = (id: string, confirmed: boolean) =>
+  request<KpiLinkCycleRead>(`/kpi-links/cycles/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ confirmed }),
+  })
+
+export const listKpiFactors = (compositeKpiId: string) =>
+  request<KpiFactorRead[]>(`/kpi-factors?composite_kpi_id=${encodeURIComponent(compositeKpiId)}`)
