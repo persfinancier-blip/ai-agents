@@ -22,7 +22,7 @@ import { ProcessMap } from './ProcessMap'
 
 const HumanDot = () => (
   <svg width="12" height="12" viewBox="0 0 28 28">
-    <circle cx="14" cy="14" r="10" fill="none" stroke="#e4e3df" strokeWidth="2" />
+    <circle cx="14" cy="14" r="10" fill="none" stroke="#e7e8ee" strokeWidth="2" />
   </svg>
 )
 

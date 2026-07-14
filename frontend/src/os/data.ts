@@ -52,7 +52,7 @@ export const MAP_GOALS: MapGoal[] = [
     ft: ['25% · риск', 'отв. Соколова М.'],
     x: 20,
     y: 56,
-    w: 200,
+    w: 250,
   },
   {
     id: 'g13',
@@ -62,9 +62,9 @@ export const MAP_GOALS: MapGoal[] = [
     pct: 34,
     tone: 'warn',
     ft: ['34% · заблокирована', 'отв. Козлов Д.'],
-    x: 310,
+    x: 320,
     y: 56,
-    w: 215,
+    w: 265,
   },
   {
     id: 'g12',
@@ -76,7 +76,7 @@ export const MAP_GOALS: MapGoal[] = [
     ft: ['✓ 100%', '2 хода'],
     x: 20,
     y: 292,
-    w: 180,
+    w: 230,
   },
   {
     id: 'g18',
@@ -86,9 +86,9 @@ export const MAP_GOALS: MapGoal[] = [
     pct: 0,
     tone: 'next',
     ft: ['после GOAL-014', 'отв. —'],
-    x: 790,
+    x: 780,
     y: 292,
-    w: 225,
+    w: 245,
   },
 ]
 
@@ -181,6 +181,20 @@ export const ADVISOR_SLOTS: AdvisorSlot[] = [
     ],
     quick: ['предложи структуру', 'кто перегружен?'],
   },
+]
+
+/* оверлей разговора (дизайн v2, промпт №20): демо-темы, привязанные к целям */
+
+export interface AdvisorTopic {
+  id: string
+  title: string
+  meta: string
+}
+
+export const ADVISOR_TOPICS: AdvisorTopic[] = [
+  { id: 't-cash', title: 'Касса и найм', meta: 'сегодня · GOAL-014' },
+  { id: 't-forecast', title: 'Прогноз выручки', meta: 'вчера · GOAL-014' },
+  { id: 't-unit', title: 'Юнит-экономика', meta: '28.05 · GOAL-012' },
 ]
 
 /* карточка цели GOAL-014 */

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { listGoals } from '../api'
 import type { GoalRead } from '../types'
+import { AdvisorOrb } from './AdvisorOrb'
 import {
   ADVISOR_SLOTS,
+  ADVISOR_TOPICS,
   FOCUS_GOAL,
   MAP_GOALS,
   RAIL_ACTIVE,
@@ -12,11 +14,14 @@ import type { ChatMsg, RailBlock } from './data'
 import { buildGoalForest, layoutForest } from './goalTree'
 import type { GoalNode } from './goalTree'
 
-const STROKE = 'rgba(228,227,223,.55)'
+const STROKE = 'rgba(231,232,238,.55)'
 
 // сообщения чата рендерятся как HTML (демо-разметка) — свой ввод экранируем
 const escapeHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+// «шёпот» у орба — одна строка без разметки чата
+const stripHtml = (s: string) => s.replace(/<[^>]+>/g, '')
 
 function Icon({ name, color = STROKE }: { name: string; color?: string }) {
   const p = { fill: 'none', stroke: color, strokeWidth: 1.6 }
@@ -94,7 +99,7 @@ function Icon({ name, color = STROKE }: { name: string; color?: string }) {
 
 const HumanDot = () => (
   <svg width="11" height="11" viewBox="0 0 28 28">
-    <circle cx="14" cy="14" r="10" fill="none" stroke="#e4e3df" strokeWidth="2" />
+    <circle cx="14" cy="14" r="10" fill="none" stroke="#e7e8ee" strokeWidth="2" />
   </svg>
 )
 
@@ -112,6 +117,28 @@ function RailButton({ b }: { b: RailBlock }) {
       {b.name} <span className="hp">{b.hp}</span>
     </button>
   )
+}
+
+/* ── идентичность ветки на карте: декоративный цвет иконки-бейджа узла,
+   независимый от светофора статусов (D2 Часть III). Реальные цели не несут
+   поля «ветка» — цвет берётся детерминированным хешем id, до появления
+   такого поля в модели данных (см. «Открытые вопросы» Visual_Reference.md). */
+
+const BRANCH_STYLES = [
+  { hex: '#a855f7', bg: 'rgba(168,85,247,.14)', bd: 'rgba(168,85,247,.4)', fg: '#c084fc' },
+  { hex: '#22d3ee', bg: 'rgba(34,211,238,.12)', bd: 'rgba(34,211,238,.4)', fg: '#67e8f9' },
+  { hex: '#fb923c', bg: 'rgba(251,146,60,.13)', bd: 'rgba(251,146,60,.45)', fg: '#fdba74' },
+  { hex: '#3b82f6', bg: 'rgba(59,130,246,.13)', bd: 'rgba(59,130,246,.45)', fg: '#93c5fd' },
+] as const
+
+const FOG_ICON = { hex: '#6b6f80', bg: 'rgba(231,232,238,.06)', bd: 'rgba(231,232,238,.25)', fg: 'rgba(231,232,238,.5)' }
+const SEL_ICON = { hex: '#a855f7', bg: 'rgba(168,85,247,.18)', bd: 'rgba(168,85,247,.55)', fg: '#c084fc' }
+
+function branchStyle(id: string, fog: boolean): (typeof BRANCH_STYLES)[number] | typeof FOG_ICON {
+  if (fog) return FOG_ICON
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return BRANCH_STYLES[h % BRANCH_STYLES.length]
 }
 
 /* ── реальная карта целей (Goal API, промпт №17) ─────────────────────────── */
@@ -138,18 +165,21 @@ function RealGoalMap({ forest, onOpenGoal }: { forest: GoalNode[]; onOpenGoal: (
   const pos = layoutForest(forest)
 
   // рёбра структурного дерева parent_id (связи KPI→KPI и циклы — не здесь: ADR-0004)
-  const edges: { key: string; x1: number; y1: number; x2: number; y2: number }[] = []
+  const edges: { key: string; x1: number; y1: number; x2: number; y2: number; fog: boolean; color: string }[] = []
   const walk = (node: GoalNode): void => {
     const from = pos.get(node.goal.id)
     for (const child of node.children) {
       const to = pos.get(child.goal.id)
       if (from && to) {
+        const fog = child.goal.definiteness === 'fog'
         edges.push({
           key: `${node.goal.id}-${child.goal.id}`,
           x1: from.x + from.w,
           y1: from.y + 38,
           x2: to.x,
           y2: to.y + 38,
+          fog,
+          color: branchStyle(child.goal.id, fog).hex,
         })
       }
       walk(child)
@@ -176,8 +206,11 @@ function RealGoalMap({ forest, onOpenGoal }: { forest: GoalNode[]; onOpenGoal: (
             y1={e.y1}
             x2={e.x2}
             y2={e.y2}
-            stroke="rgba(228,227,223,.25)"
+            stroke={e.color}
+            strokeOpacity={e.fog ? '.3' : '.5'}
             strokeWidth="1.5"
+            strokeDasharray="5 6"
+            className={e.fog ? undefined : 'flow'}
           />
         ))}
       </svg>
@@ -185,28 +218,27 @@ function RealGoalMap({ forest, onOpenGoal }: { forest: GoalNode[]; onOpenGoal: (
       {nodes.map(({ goal: g }) => {
         const p = pos.get(g.id)
         if (!p) return null
+        const fog = g.definiteness === 'fog'
+        const bs = branchStyle(g.id, fog)
         return (
           <button
             key={g.id}
-            className={`gcard${goalTone(g)}`}
+            className={`gcard${goalTone(g)}${fog ? ' hazy' : ''}`}
             style={{ left: p.x, top: p.y, width: p.w }}
             title="Открыть карточку цели"
             onClick={() => onOpenGoal(g.id)}
           >
-            <span>
-              <span className="id">
-                ЦЕЛЬ · {g.definiteness === 'fog' ? 'туман' : 'определена'}
+            <span className="row">
+              <span className="ic" style={{ background: bs.bg, borderColor: bs.bd, color: bs.fg }}>
+                <Icon name="hex" color={bs.fg} />
               </span>
-              <span className="nm" style={{ display: 'block' }}>
-                {g.name}
+              <span className="txt">
+                <span className="nm">{g.name}</span>
+                <span className="sb">
+                  {ownerLabel(g)} · {fog ? 'туман' : 'определена'}
+                </span>
               </span>
-            </span>
-            <span className="bar">
-              <i />
-            </span>
-            <span className="ft">
-              <span>{kpiLabel(g)}</span>
-              <span>{ownerLabel(g)}</span>
+              <span className="kp">{kpiLabel(g)}</span>
             </span>
           </button>
         )
@@ -217,7 +249,9 @@ function RealGoalMap({ forest, onOpenGoal }: { forest: GoalNode[]; onOpenGoal: (
         // квадрант) — простая временная раскладка, как и вся карта этого среза.
         <div className="gx" style={{ left: 620, top: 300, width: 400 }}>
           <div className="hd">
-            <Icon name="hex" color="#e8c04a" />
+            <span className="ic" style={{ background: SEL_ICON.bg, borderColor: SEL_ICON.bd, color: SEL_ICON.fg }}>
+              <Icon name="hex" color={SEL_ICON.fg} />
+            </span>
             <div>
               <div className="t">{focus.goal.name}</div>
               <div className="s">
@@ -254,51 +288,49 @@ function DemoGoalMap({ onOpenGoal }: { onOpenGoal: (id: string) => void }) {
   return (
     <>
       <svg viewBox="0 0 1040 560">
-        <line x1="220" y1="96" x2="310" y2="96" stroke="#e8544a" strokeOpacity=".6" strokeWidth="1.6" strokeDasharray="5 6" className="flow" />
-        <polygon points="310,96 302,92 302,100" fill="#e8544a" fillOpacity=".7" />
-        <line x1="200" y1="330" x2="280" y2="330" stroke="#8fd14f" strokeOpacity=".55" strokeWidth="1.5" />
-        <polygon points="280,330 272,326 272,334" fill="#8fd14f" fillOpacity=".6" />
-        <line x1="420" y1="140" x2="890" y2="290" stroke="#e8c04a" strokeOpacity=".45" strokeWidth="1.5" strokeDasharray="5 6" className="flow" />
-        <line x1="710" y1="330" x2="790" y2="330" stroke="#e8c04a" strokeOpacity=".6" strokeWidth="1.6" strokeDasharray="5 6" className="flow" />
-        <polygon points="790,330 782,326 782,334" fill="#e8c04a" fillOpacity=".7" />
+        <line x1="220" y1="96" x2="310" y2="96" stroke="var(--rk)" strokeOpacity=".6" strokeWidth="1.6" strokeDasharray="5 6" className="flow" />
+        <polygon points="310,96 302,92 302,100" fill="var(--rk)" fillOpacity=".7" />
+        <line x1="200" y1="330" x2="280" y2="330" stroke="var(--gr)" strokeOpacity=".55" strokeWidth="1.5" />
+        <polygon points="280,330 272,326 272,334" fill="var(--gr)" fillOpacity=".6" />
+        <line x1="420" y1="140" x2="890" y2="290" stroke="var(--op)" strokeOpacity=".45" strokeWidth="1.5" strokeDasharray="5 6" className="flow" />
+        <line x1="710" y1="330" x2="790" y2="330" stroke="var(--op)" strokeOpacity=".6" strokeWidth="1.6" strokeDasharray="5 6" className="flow" />
+        <polygon points="790,330 782,326 782,334" fill="var(--op)" fillOpacity=".7" />
         <text x="238" y="84" fill="rgba(232,84,74,.85)" fontSize="9" fontFamily="IBM Plex Mono">блокирует</text>
         <text x="204" y="320" fill="rgba(143,209,79,.7)" fontSize="9" fontFamily="IBM Plex Mono">выполнена</text>
         <text x="714" y="318" fill="rgba(232,192,74,.8)" fontSize="9" fontFamily="IBM Plex Mono">следующая</text>
       </svg>
 
-      {MAP_GOALS.map((g) => (
-        <button
-          key={g.id}
-          className={`gcard g-${g.tone}`}
-          style={{ left: g.x, top: g.y, width: g.w }}
-          onClick={() => onOpenGoal(g.id)}
-        >
-          <span>
-            <span className="id">
-              {g.code} · {g.kind}
+      {MAP_GOALS.map((g) => {
+        const fogLike = g.tone === 'next'
+        const bs = branchStyle(g.id, fogLike)
+        return (
+          <button
+            key={g.id}
+            className={`gcard g-${g.tone}${fogLike ? ' hazy' : ''}`}
+            style={{ left: g.x, top: g.y, width: g.w }}
+            onClick={() => onOpenGoal(g.id)}
+          >
+            <span className="row">
+              <span className="ic" style={{ background: bs.bg, borderColor: bs.bd, color: bs.fg }}>
+                <Icon name="hex" color={bs.fg} />
+              </span>
+              <span className="txt">
+                <span className="nm">{g.name}</span>
+                <span className="sb">{g.ft[1]}</span>
+              </span>
+              <span className="kp" style={g.tone === 'done' ? { color: 'var(--gr)' } : undefined}>
+                {g.ft[0].split('·')[0].trim()}
+              </span>
             </span>
-            <span className="nm" style={{ display: 'block' }}>
-              {g.name}
-            </span>
-          </span>
-          <span className="bar">
-            <i
-              style={{
-                width: `${g.pct}%`,
-                background: g.tone === 'done' ? 'var(--gr)' : g.tone === 'warn' ? 'var(--op)' : g.tone === 'risk' ? 'var(--rk)' : 'transparent',
-              }}
-            />
-          </span>
-          <span className="ft">
-            <span style={g.tone === 'done' ? { color: 'var(--gr)' } : undefined}>{g.ft[0]}</span>
-            <span>{g.ft[1]}</span>
-          </span>
-        </button>
-      ))}
+          </button>
+        )
+      })}
 
       <div className="gx" style={{ left: FOCUS_GOAL.x, top: FOCUS_GOAL.y, width: FOCUS_GOAL.w }}>
         <div className="hd">
-          <Icon name="hex" color="#e8c04a" />
+          <span className="ic" style={{ background: SEL_ICON.bg, borderColor: SEL_ICON.bd, color: SEL_ICON.fg }}>
+            <Icon name="hex" color={SEL_ICON.fg} />
+          </span>
           <div>
             <div className="t">{FOCUS_GOAL.name}</div>
             <div className="s">
@@ -352,6 +384,15 @@ function DemoGoalMap({ onOpenGoal }: { onOpenGoal: (id: string) => void }) {
   )
 }
 
+/* ── вертикаль собеседников: орбы советников + оверлей разговора ─────────── */
+
+const ADVISOR_HUE: Record<string, number> = { cfo: 278, strat: 28 }
+const ADVISOR_BADGE: Record<string, { bg: string; fg: string }> = {
+  cfo: { bg: 'var(--id-purple)', fg: '#f3e8ff' },
+  strat: { bg: 'var(--id-orange)', fg: '#431407' },
+}
+const ADVISOR_UNREAD: Record<string, number> = { cfo: 3, strat: 1 }
+
 export function CommandPanel({
   decisionsOnMove,
   onOpenGoal,
@@ -362,6 +403,8 @@ export function CommandPanel({
   const [slotId, setSlotId] = useState(ADVISOR_SLOTS[0].id)
   const [extra, setExtra] = useState<Record<string, ChatMsg[]>>({})
   const [text, setText] = useState('')
+  const [advisorOpen, setAdvisorOpen] = useState(false)
+  const [topicId, setTopicId] = useState(ADVISOR_TOPICS[0].id)
 
   // реальные цели: null — загрузка; [] и далее — ответ API; error — отказ сети/бэка
   const [goals, setGoals] = useState<GoalRead[] | null>(null)
@@ -372,6 +415,15 @@ export function CommandPanel({
       .then(setGoals)
       .catch(() => setGoalsError(true))
   }, [])
+
+  useEffect(() => {
+    if (!advisorOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAdvisorOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [advisorOpen])
 
   const forest = buildGoalForest(goals ?? [])
   const hasRealGoals = forest.length > 0
@@ -387,6 +439,8 @@ export function CommandPanel({
 
   const slot = ADVISOR_SLOTS.find((s) => s.id === slotId) ?? ADVISOR_SLOTS[0]
   const chat = [...slot.chat, ...(extra[slot.id] ?? [])]
+  const lastAi = [...chat].reverse().find((m) => m.who === 'ai')
+  const topic = ADVISOR_TOPICS.find((t) => t.id === topicId) ?? ADVISOR_TOPICS[0]
 
   const send = () => {
     if (!text.trim()) return
@@ -400,35 +454,31 @@ export function CommandPanel({
     setText('')
   }
 
+  const openAdvisor = (id: string) => {
+    setSlotId(id)
+    setAdvisorOpen(true)
+  }
+
   return (
     <div className="os-panel">
       <header className="top">
-        <div className="l">
-          <span className="logo">
-            <Icon name="hex" color="#8fd14f" />
-            ВЕКТОР·OS
+        <div className="l pill">
+          <span className="logotile">
+            <Icon name="hex" color="var(--id-purple)" />
           </span>
-          <span className="sep" />
-          <span className="crumb">
-            Компания / <b>Карта целей</b>
-          </span>
+          <span className="logo">ВЕКТОР·OS</span>
+          <span className="crumb">/ карта целей</span>
         </div>
-        <div className="search">
+        <div className="search pill">
           <svg width="13" height="13" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="7" fill="none" stroke="rgba(228,227,223,.4)" strokeWidth="1.6" />
-            <line x1="16.2" y1="16.2" x2="21" y2="21" stroke="rgba(228,227,223,.4)" strokeWidth="1.6" />
+            <circle cx="11" cy="11" r="7" fill="none" stroke="rgba(231,232,238,.4)" strokeWidth="1.6" />
+            <line x1="16.2" y1="16.2" x2="21" y2="21" stroke="rgba(231,232,238,.4)" strokeWidth="1.6" />
           </svg>
           искать цель, сущность, команду…
         </div>
         <div className="r">
-          <span>
-            МАСШТАБ <b>КОМПАНИЯ</b>
-          </span>
-          <span>
-            ХОД <b>14</b>
-          </span>
-          <span>
-            пн 06.07 <b>09:41</b>
+          <span className="pill rmeta">
+            МАСШТАБ <b>КОМПАНИЯ</b> · ХОД <b>14</b> · пн 06.07 <b>09:41</b>
           </span>
           <span className="ava">АС</span>
         </div>
@@ -450,7 +500,7 @@ export function CommandPanel({
           <div className="bitab">
             СВОДКА · BI <span>◂</span>
           </div>
-          <div className="stage">
+          <div className={`stage${advisorOpen ? ' blurred' : ''}`}>
             <div className="maplbl">{mapLabel}</div>
 
             <div className="canvas">
@@ -465,58 +515,96 @@ export function CommandPanel({
               )}
             </div>
           </div>
-        </div>
 
-        <aside className="adv">
-          <div className="ph">
-            <span className="t">СОВЕТНИКИ · 3 СЛОТА</span>
-            <span className="cl" title="Свернуть панель">
-              ▸
-            </span>
-          </div>
-          <div className="slots">
+          <div className={`strip${advisorOpen ? ' hidden' : ''}`}>
             {ADVISOR_SLOTS.map((s) => (
-              <button key={s.id} className={`slot${s.id === slotId ? ' on' : ''}`} onClick={() => setSlotId(s.id)}>
-                <div className="sn">{s.name}</div>
-                <div className="sr">{s.role}</div>
-              </button>
-            ))}
-            <button className="slot add" title="Прототип: выбор агента появится позже">
-              <div className="sn">+ слот</div>
-              <div className="sr">выбрать агента</div>
-            </button>
-          </div>
-          <div className="ctx">
-            КОНТЕКСТ <i>GOAL-014 · Выручка 120 млн ₽</i>
-          </div>
-          <div className="chat">
-            {chat.map((m, i) => (
-              <div key={i} className={`msg ${m.who}`}>
-                <div className="mt">{m.meta}</div>
-                {/* демо-контент из дизайн-данных, не пользовательский ввод с бэкенда */}
-                <span dangerouslySetInnerHTML={{ __html: m.html }} />
+              <div
+                key={s.id}
+                className="adva"
+                role="button"
+                tabIndex={0}
+                aria-label={`Открыть разговор: ${s.name}`}
+                title={s.name}
+                onClick={() => openAdvisor(s.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    openAdvisor(s.id)
+                  }
+                }}
+              >
+                <AdvisorOrb size={52} hue={ADVISOR_HUE[s.id] ?? 200} />
+                {ADVISOR_UNREAD[s.id] > 0 && (
+                  <span className="abdg" style={{ background: ADVISOR_BADGE[s.id]?.bg, color: ADVISOR_BADGE[s.id]?.fg }}>
+                    {ADVISOR_UNREAD[s.id]}
+                  </span>
+                )}
+                {s.id === slotId && lastAi && <span className="whisper">{stripHtml(lastAi.html)}</span>}
               </div>
             ))}
+            <div className="adva add" role="button" tabIndex={0} aria-label="Добавить слот советника" title="Прототип: выбор агента появится позже">
+              +
+            </div>
           </div>
-          <div className="quick">
-            {slot.quick.map((q) => (
-              <button key={q} onClick={() => setText(q)}>
-                {q}
-              </button>
-            ))}
-          </div>
-          <div className="inp">
-            <input
-              type="text"
-              placeholder={`сообщение — ${slot.name}…`}
-              aria-label="Сообщение советнику"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
-            />
-            <button onClick={send}>→</button>
-          </div>
-        </aside>
+
+          {advisorOpen && (
+            <div className="ov">
+              <div className="ov-bg" onClick={() => setAdvisorOpen(false)} />
+              <div className="ov-orb">
+                <AdvisorOrb size={220} hue={ADVISOR_HUE[slot.id] ?? 200} />
+                <div className="ov-name">{slot.name} · слушает</div>
+              </div>
+              <div className="ov-topics">
+                <div className="ov-topics-cap">темы</div>
+                {ADVISOR_TOPICS.map((t) => (
+                  <button key={t.id} className={`topic${t.id === topicId ? ' on' : ''}`} onClick={() => setTopicId(t.id)}>
+                    {t.title}
+                    <br />
+                    <span>{t.meta}</span>
+                  </button>
+                ))}
+                <button className="topic add">+ новая тема</button>
+              </div>
+              <div className="ov-chat">
+                <div className="ov-chat-hd">
+                  <span>
+                    {topic.title} · контекст {topic.meta.split('·').pop()?.trim()}
+                  </span>
+                  <button className="ov-close" onClick={() => setAdvisorOpen(false)} aria-label="Закрыть разговор">
+                    ✕
+                  </button>
+                </div>
+                <div className="ov-msgs">
+                  {chat.map((m, i) => (
+                    <div key={i} className={`omsg ${m.who}`}>
+                      <span dangerouslySetInnerHTML={{ __html: m.html }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="quick">
+                  {slot.quick.map((q) => (
+                    <button key={q} onClick={() => setText(q)}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+                <div className="ov-input">
+                  <input
+                    type="text"
+                    placeholder="говори или пиши — я слушаю…"
+                    aria-label="Сообщение советнику"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && send()}
+                  />
+                  <span className="mic" aria-hidden="true">
+                    🎙
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <footer className="bot">
