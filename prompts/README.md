@@ -11,15 +11,13 @@
 
 ## Активные
 
-| Файл | Что делает | Тип |
-|---|---|---|
-| `prompt-20-restyle-v2.md` | Рестайл `CommandPanel`/карточек под дизайн v2: токены, стеклянные узлы, плавающие пилюли, компонент `AdvisorOrb` (canvas), вертикаль орбов + оверлей разговора с темами; логика/API нетронуты. №19 (канон) выполнен — можно начинать | код |
+Активных промптов нет — №20 (рестайл v2) выполнен и слит.
 
-`prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-14-step3b-composite-kpi.md`, `prompt-15-workspace-platform-canon.md`, `prompt-16-repo-integrity-recovery.md`, `prompt-17-frontend-goal-map-binding.md`, `prompt-18-real-goal-card.md`, `prompt-19-design-canon-v2.md` выполнены и слиты в `main` (см. `_done/`).
+`prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-14-step3b-composite-kpi.md`, `prompt-15-workspace-platform-canon.md`, `prompt-16-repo-integrity-recovery.md`, `prompt-17-frontend-goal-map-binding.md`, `prompt-18-real-goal-card.md`, `prompt-19-design-canon-v2.md`, `prompt-20-restyle-v2.md` выполнены и слиты в `main` (см. `_done/`).
 
 ## Что дальше по плану
 
-- После рестайла v2: редактирование целей из UI (create/patch/delete), карточка агента («персонаж»), советник по постановке цели.
+- Редактирование целей из UI (create/patch/delete), карточка агента («персонаж»), советник по постановке цели — поверх шкуры v2.
 - Ресурсные блоки (Финансы/Персонал/Продажи/Товары/Производство) как предпосылка «факта» KPI (ADR-0005).
 
 ## История (в `_done/`)
@@ -29,3 +27,5 @@
 Канон: решения по увязке (ADR-0002), модель целей и KPI-сущность (ADR-0003), типы связей и циклы (ADR-0004), план/факт и клиентская архитектура (ADR-0005), Workspace Platform — рабочие пространства сущностей (направление), дизайн-направление v2 (Часть III `Visual_Reference.md`, референс ZOEY_OS) + `User_Scenarios.md` (промпт №19).
 
 Код Goal: Шаг 1 (CRUD + туман/определён) → 2a (KPI как Сущность) → 2b (дерево `parent_id`) → 3-0 (diff-sync KPI) → 3a (граф связей `kpi_link`) → 3c (детект циклов `kpi_link_cycle`) → 3b (составной KPI `kpi_factor`) → Ф1 (карта целей на Goal API, read-only) → Ф2 (карточка цели на реальных данных, read-only).
+
+Код UI: рестайл `CommandPanel`/`GoalCard` под дизайн-направление v2 — токены, `AdvisorOrb`, вертикаль орбов + оверлей разговора (промпт №20).
