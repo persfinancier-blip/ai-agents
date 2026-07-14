@@ -9,27 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { ApiError, deleteGoal, getGoal, getGoalSubtree, listGoals, patchGoal } from '../api'
 import type { GoalKpiRead, GoalPatch, GoalRead } from '../types'
-
-const LIFECYCLE_LABEL_RU: Record<string, string> = {
-  draft: 'Черновик',
-  active: 'Активна',
-  review: 'На проверке',
-  archived: 'Архивирована',
-}
-
-const lifecycleLabel = (stage: string): string => (LIFECYCLE_LABEL_RU[stage] ?? stage).toUpperCase()
-
-const ownerOrDash = (owner: string): string => (owner.trim() === '' ? '—' : owner)
-
-const definitenessLabel = (g: GoalRead): string => (g.definiteness === 'fog' ? 'туман' : 'определена')
-
-// Композитный KPI (computed_value) — вычисленное значение важнее target;
-// без таргета и без computed_value это и есть туман-кейс (D6, §9 Management_Model).
-const kpiValue = (k: GoalKpiRead): string => {
-  if (k.computed_value != null) return `${k.computed_value} ${k.unit} · расчёт`
-  if (k.target != null) return `${k.target} ${k.unit}`
-  return '—'
-}
+import { definitenessLabel, kpiValue, lifecycleLabel, ownerOrDash } from './goalFormat'
 
 type Status = 'loading' | 'ready' | 'notfound' | 'error'
 
@@ -148,10 +128,12 @@ export function RealGoalCard({
   path,
   onNavigate,
   onBack,
+  onOpenCanvas,
 }: {
   path: string[]
   onNavigate: (path: string[]) => void
   onBack: () => void
+  onOpenCanvas: () => void
 }) {
   const id = path[path.length - 1]
 
@@ -394,6 +376,9 @@ export function RealGoalCard({
               {goal.definiteness === 'fog' ? 'ТУМАН' : 'ОПРЕДЕЛЕНА'}
             </span>
             <span className={`chip lc-${goal.lifecycle_stage}`}>{lifecycleLabel(goal.lifecycle_stage)}</span>
+            <button className="bdg b-sec" onClick={onOpenCanvas} aria-label="Открыть канвас постановки цели">
+              канвас постановки →
+            </button>
           </span>
         )}
       </header>
