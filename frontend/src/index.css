@@ -1,18 +1,36 @@
-/* Вектор·OS — Terminal Strategist base (per approved design renders). */
+/* Вектор·OS — дизайн-направление v2 («полотно вместо рамок», референс ZOEY_OS,
+   canon docs/full-vision/09_Design_System/Visual_Reference.md Часть III).
+   Значения — дословно из renders/mockup-target-v2.html. Заменяет Terminal
+   Strategist (история v1, промпт №20). */
 
 :root {
-  --bg: #0a0a0b;
-  --bar: #0e0e10;
-  --sf: #141416;
-  --sf2: #1b1b1e;
-  --ln: rgba(255, 255, 255, 0.08);
-  --ink: #e4e3df;
-  --i55: rgba(228, 227, 223, 0.55);
-  --i40: rgba(228, 227, 223, 0.4);
-  --i35: rgba(228, 227, 223, 0.35);
+  --bg: #0b0d13;
+  --bar: rgba(18, 20, 27, 0.85);
+  --sf: rgba(24, 26, 34, 0.92);
+  --sf2: rgba(18, 20, 27, 0.85);
+  --sf0: rgba(10, 11, 16, 0.9);
+  --ln: rgba(255, 255, 255, 0.09);
+  --grid-ln: rgba(255, 255, 255, 0.032);
+  --ink: #e7e8ee;
+  --i55: rgba(231, 232, 238, 0.55);
+  --i45: rgba(231, 232, 238, 0.45);
+  --i40: rgba(231, 232, 238, 0.4);
+  --i38: rgba(231, 232, 238, 0.38);
+  --i35: rgba(231, 232, 238, 0.35);
+  --i32: rgba(231, 232, 238, 0.32);
+  --i25: rgba(231, 232, 238, 0.25);
   --gr: #8fd14f;
   --rk: #e8544a;
   --op: #e8c04a;
+  /* идентичность агента/ветки — канал, независимый от светофора статусов (D2 Часть III) */
+  --id-purple: #a855f7;
+  --id-cyan: #22d3ee;
+  --id-orange: #fb923c;
+  --id-blue: #3b82f6;
+  /* геометрия v2 (D4 Часть III) */
+  --r-card: 14px;
+  --r-badge: 10px;
+  --r-pill: 99px;
   --sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', 'Cascadia Mono', Consolas, monospace;
 
