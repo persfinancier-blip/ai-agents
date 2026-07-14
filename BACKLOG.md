@@ -43,10 +43,10 @@
   слита в main.
 - [ ] `goal_service.list_goals` тянет KPI отдельным запросом на каждую цель (N+1).
   Оптимизировать (bulk-загрузка KPI по списку goal_id) при росте числа целей.
-- [ ] Доработать `.claude/hooks/protect-main.sh`: (а) ловит только `Edit|Write|NotebookEdit`
+- [x] Доработать `.claude/hooks/protect-main.sh`: (а) ловит только `Edit|Write|NotebookEdit`
   — запись через Bash его обходит (дыра); (б) блокирует легитимное разрешение
-  merge-конфликтов на `main`. Вариант: пропускать правки при активном merge (`MERGE_HEAD`)
-  или сливать через temp-ветку с fast-forward.
+  merge-конфликтов на `main`. Закрыто промптом №25 (`chore/config-hygiene`, PR #3):
+  добавлен матчер `Bash`, исключение — активный `MERGE_HEAD`.
 - [x] Рестайл frontend под дизайн v2 (промпт №20): токены, стеклянные узлы, плавающие
   пилюли, компонент `AdvisorOrb` (canvas), вертикаль орбов + оверлей разговора с темами;
   логика/API не трогали. См. `Visual_Reference.md` Часть III (канон). Ветка `feat/frontend-restyle-v2`.
