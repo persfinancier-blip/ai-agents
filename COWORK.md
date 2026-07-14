@@ -56,6 +56,8 @@ A session = **one declared outcome**, not a diary. A long session is expensive: 
 
 By default a handoff is **not** proposed — only at these points, not as a ritual on every step. There's no exact token counter; "goal met / context drifted" is the "time to go" detector. The handoff generator is the `/handoff` command (Bootstrap fills itself in).
 
+- **Триггер `/handoff` (привязан к шагу проверки):** when post-pass MCP verification confirms the pass achieved the milestone's result and Cowork is about to report «веха закрыта», that **same message must also propose `/handoff` + a fresh session** — it must not offer to continue new work inside the closed milestone's session. The trigger is the concrete moment "about to declare «веха закрыта»", not the abstract "context switch".
+
 ## Working with the `prompts/` folder
 
 - **New prompt** → Cowork drops the file straight into `prompts/` named `prompt-NN-short-name.md` (NN = the next sequential number), but does **not** commit or push it — Claude Code publishes it as part of the pass.
