@@ -11,13 +11,16 @@
 
 ## Активные
 
-Пока нет активных промптов.
+| Файл | Что делает | Тип |
+|---|---|---|
+| `prompt-19-design-canon-v2.md` | Канон дизайн-направления v2 (референс ZOEY_OS, мокап утверждён 2026-07-13): Часть III бренд-бука — frameless, палитра, орб-советник, вертикаль собеседников, оверлей разговора, язык роя точек; рендеры эталона `mockup-target-v2.html`; новый док `User_Scenarios.md` — шесть ролевых сценариев владельца. Только доки | канон |
+| `prompt-20-restyle-v2.md` | Рестайл `CommandPanel`/карточек под дизайн v2: токены, стеклянные узлы, плавающие пилюли, компонент `AdvisorOrb` (canvas), вертикаль орбов + оверлей разговора с темами; логика/API нетронуты. Выполнять ПОСЛЕ №19 | код |
 
 `prompt-10-step3a-links.md`, `prompt-11-fix-plan-fact-clients.md`, `prompt-12-resolve-step3a-merge.md`, `prompt-13-step3c-cycle-detection.md`, `prompt-14-step3b-composite-kpi.md`, `prompt-15-workspace-platform-canon.md`, `prompt-16-repo-integrity-recovery.md`, `prompt-17-frontend-goal-map-binding.md`, `prompt-18-real-goal-card.md` выполнены и слиты в `main` (см. `_done/`).
 
 ## Что дальше по плану
 
-- Следующие срезы фронта: редактирование целей из UI (create/patch/delete), советник по постановке цели.
+- После рестайла v2: редактирование целей из UI (create/patch/delete), карточка агента («персонаж»), советник по постановке цели.
 - Ресурсные блоки (Финансы/Персонал/Продажи/Товары/Производство) как предпосылка «факта» KPI (ADR-0005).
 
 ## История (в `_done/`)
