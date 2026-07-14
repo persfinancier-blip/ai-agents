@@ -1,56 +1,56 @@
-# ai-agents — Enterprise OS (люди + ИИ = единая рабочая сила)
+# ai-agents — Enterprise OS (people + AI = one workforce)
 
-Репозиторий ОС по управлению агентами; «Decision Center» — первый вертикальный срез, не продукт. Подробные правила по зонам — в `.claude/rules/` (backend/frontend/docs/commits); этот файл — только указатели.
+Repository for the OS that manages agents; "Decision Center" is the first vertical slice, not a product. Detailed zone rules live in `.claude/rules/` (backend/frontend/docs/commits); this file is pointers only.
 
-## Команды
+## Commands
 
 ```bash
 # backend (FastAPI + SQLAlchemy async + Alembic; Python >=3.11,<3.13)
 cd backend && .venv\Scripts\activate
-pytest                                             # тесты (мок LLMProvider, без живых API)
-ruff check . && ruff format --check . && mypy app  # все четыре зелёные до PR (CI гоняет то же)
+pytest                                             # tests (mocked LLMProvider, no live APIs)
+ruff check . && ruff format --check . && mypy app  # all four green before a PR (CI runs the same)
 alembic upgrade head
 
 # frontend (React 19 + TS + Vite)
-cd frontend && npm run dev      # прокси /api -> :8000
+cd frontend && npm run dev      # proxies /api -> :8000
 npm run build && npm run lint   # tsc -b + vite build; oxlint
 ```
 
-## Источники истины (по приоритету)
+## Sources of truth (by priority)
 
-1. `docs/full-vision/02_Product/PRD.md` — продуктовые требования.
-2. `docs/full-vision/02_Product/Management_Model.md` — модель управления (карты, роли, увязка, навык ≠ компетенция).
-3. `docs/full-vision/09_Design_System/Visual_Reference.md` — интерфейсная модель + бренд-бук (рендеры в `renders/`).
+1. `docs/full-vision/02_Product/PRD.md` — product requirements.
+2. `docs/full-vision/02_Product/Management_Model.md` — management model (maps, roles, alignment, skill ≠ competency).
+3. `docs/full-vision/09_Design_System/Visual_Reference.md` — interface model + brand book (renders in `renders/`).
 
-Навигация — `docs/full-vision/INDEX.md`; правила правок доков — `docs/full-vision/AGENTS.md`. Остальной full-vision-архив — reference, не канон. Реализационные решения — ADR в `docs/adr/`.
+Navigation — `docs/full-vision/INDEX.md`; doc-editing rules — `docs/full-vision/AGENTS.md`. The rest of the full-vision archive is reference, not canon. Implementation decisions — ADRs in `docs/adr/`.
 
-## Процесс
+## Process
 
-- Ветки от `main` (`feat/<веха>-<суть>`), прямые правки на `main` блокирует хук. Conventional Commits; кросс-каттинг — отдельный `chore:` PR.
-- Весь пользовательский UI-текст — на русском (CONTRIBUTING «Localization»).
-- LLM SDK импортируется ТОЛЬКО в `backend/app/llm/<provider>_provider.py`; локально `LLM_PROVIDER=stub` — ключи не нужны.
-- Конец каждого прохода: запись в `docs/DEVLOG.md` (`/devlog`), задачи — в `BACKLOG.md`. Milestone-таблица в README может отставать — проверяй `git log`.
+- Branch off `main` (`feat/<milestone>-<subject>`); direct edits to `main` are blocked by a hook. Conventional Commits; cross-cutting changes get a separate `chore:` PR.
+- All user-facing UI text is in Russian (CONTRIBUTING "Localization").
+- LLM SDKs are imported ONLY in `backend/app/llm/<provider>_provider.py`; locally `LLM_PROVIDER=stub` — no keys needed.
+- End of every pass: an entry in `docs/DEVLOG.md` (`/devlog`), tasks in `BACKLOG.md`. The milestone table in README can lag — check `git log`.
 
-## Экономия токенов (решение владельца, 2026-07-14)
+## Token economy (owner decision, 2026-07-14)
 
-- **Модель — Sonnet** (указана в промптах); Opus и дороже — только по явному указанию владельца.
-- **Минимальная область чтения:** файл → папка → модуль; репозиторий целиком не сканировать. Канон читать точечно — только разделы, на которые ссылается промпт, не PRD целиком.
-- **Playwright** — один прогон по чек-листу DoD в конце прохода; скриншоты — только финальные для `renders/`; после серии браузерных действий — `/compact`.
-- **Отчёты кратко:** выводы и действия; код и содержимое файлов не пересказывать.
+- **Model — Sonnet** (as specified in prompts); Opus or above only on the owner's explicit instruction.
+- **Minimal read scope:** file → folder → module; never scan the whole repo. Read canon selectively — only the sections a prompt references, not the whole PRD.
+- **Playwright** — one pass against the DoD checklist at the end of a pass; screenshots only as finals for `renders/`; run `/compact` after a series of browser actions.
+- **Reports stay short:** conclusions and actions; don't recount code or file contents.
 
-## Делегирование (субагенты)
+## Delegation (subagents)
 
-Четыре субагента в `.claude/agents/` — **контролёры по требованию** (экономия токенов, решение владельца 2026-07-14; прежнее «нужны всегда» отменено): `code-reviewer` — для диффов от ~150 строк или по явной просьбе; `spec-guardian` — в канон/доко-проходах и при изменении моделей данных; `doc-keeper` — в docs-проходах; `test-runner` — не вызывать, проверки DoD лид гоняет сам.
+Four subagents in `.claude/agents/` are **on-demand reviewers** (token economy, owner decision 2026-07-14; the earlier "always needed" rule is repealed): `code-reviewer` — for diffs of ~150+ lines or on explicit request; `spec-guardian` — on canon/doc passes and when data models change; `doc-keeper` — on docs passes; `test-runner` — don't invoke it, the lead runs DoD checks itself.
 
-**Роли-исполнители заранее НЕ заданы.** Лид решает по контексту задачи:
-- Дробить на **временные субагенты под задачу**, только когда работа реально параллельна (независимые файлы/слои) или тяжёлый контекст не должен засорять основную сессию. Каждому — **узкие `tools`** и одна чёткая задача.
-- По умолчанию — **в одном потоке**: обычный проход этого репо субагентов не требует.
-- Ориентир одновременности — не больше 3.
+**Executor roles are not pre-assigned.** The lead decides based on task context:
+- Split off into **ad-hoc task-specific subagents** only when work is genuinely parallel (independent files/layers) or heavy context shouldn't clutter the main session. Give each one **narrow `tools`** and a single clear task.
+- By default — **single-threaded**: a normal pass over this repo doesn't need subagents.
+- Concurrency guideline — no more than 3 at once.
 
-**Кристаллизация:** если роль-исполнитель проявила повторяемость — только тогда «застыть» её файлом в `.claude/agents/`. Сначала ad-hoc, в файл — по факту повторяемости.
+**Crystallization:** only "freeze" an executor role into a file under `.claude/agents/` once it has proven repeatable. Start ad-hoc; promote to a file once repetition is a fact.
 
-Любой субагент подчиняется тем же правилам: канон (PRD → Management_Model → бренд-бук), изоляция LLM-SDK, RU-локализация UI, экономия токенов.
+Every subagent follows the same rules: canon (PRD → Management_Model → brand book), LLM-SDK isolation, RU localization for UI, token economy.
 
 ## graphify
 
-Граф знаний в `graphify-out/`. Для точечных задач (найти функцию, прочитать файл, локальный фикс) — обычные grep/Read: дешевле. `graphify query` — только для вопросов о связях/архитектуре, не видных из 1–2 файлов; после правок кода `graphify update .` остаётся (AST-only, бесплатно).
+Knowledge graph in `graphify-out/`. For point tasks (find a function, read a file, a local fix) — use plain grep/Read: it's cheaper. `graphify query` — only for questions about relationships/architecture not visible from 1–2 files; after code edits `graphify update .` stays free (AST-only).

@@ -1,15 +1,16 @@
-# Коммиты и PR
+# Commits and PRs
 
 - [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `chore:`, `docs:`, `test:`.
-- Один PR = один вертикальный срез: эндпоинт + сервис + миграция (если есть) + тесты + соответствующее расширение frontend. Кросс-каттинг чинилки — отдельным `chore:` PR, в фичи не бандлить.
-- Работать только в ветках от `main` (`feat/<веха>-<суть>`, `chore/...`, `docs/...`); прямые правки на `main` блокирует хук `protect-main`.
-- **Мерж — только через PR** (`gh pr merge --merge --delete-branch`); прямой `git push origin main` агентам запрещён (блокирует хук `protect-main`). Локальный `main` синхронизируется `git pull` после мержа. Force-push запрещён (`deny` в settings); добавление/смена remote'ов — по-прежнему только по явному указанию владельца.
-- Перед предложением коммита прогнать проверки обеих сторон (`/ship` делает это целиком).
+- One PR = one vertical slice: endpoint + service + migration (if any) + tests + the matching frontend extension. Cross-cutting fixes get their own `chore:` PR — don't bundle them into a feature.
+- Work only on branches off `main` (`feat/<milestone>-<subject>`, `chore/...`, `docs/...`); the `protect-main` hook blocks direct edits to `main`.
+- **Merge only via a PR** (`gh pr merge --merge --delete-branch`); agents are forbidden from a direct `git push origin main` (the `protect-main` hook blocks it). Local `main` gets synced with `git pull` after a merge. Force-push is forbidden (`deny` in settings); adding/changing remotes still requires the owner's explicit instruction.
+- Run both sides' checks before proposing a commit (`/ship` does this end to end).
+- **File language:** see `COWORK.md` → «Язык файлов» for which files are English vs. Russian.
 
-## Пуш и ответственность
+## Push and responsibility
 
-- Чтение/проверка репо — Cowork через GitHub MCP (**read-only**).
-- Записи (commit/branch/PR/merge) — **только Claude Code** (у Cowork нет права записи в репо).
-- Прямой пуш в `main` — только человек (владелец); агенты — всегда через PR.
-- Каждая строка-запуск от Cowork несёт префлайт (Шаг 0) и «хвост-уборку» (см. `COWORK.md` → «Работа с папкой `prompts/`»).
-- Песочница Cowork и язык промпт-файлов — см. `COWORK.md` → «Пуш и ответственность (кратко)».
+- Reading/inspecting the repo — Cowork via the GitHub MCP (**read-only**).
+- Writes (commit/branch/PR/merge) — **Claude Code only** (Cowork has no write access to the repo).
+- Direct push to `main` — human (owner) only; agents always go through a PR.
+- Every kickoff line from Cowork carries a preflight (Step 0) and a "tail cleanup" (see `COWORK.md` → "Working with the `prompts/` folder").
+- Cowork's sandbox and prompt-file language — see `COWORK.md` → "Push and responsibility (brief)".

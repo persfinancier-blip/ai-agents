@@ -1,20 +1,20 @@
 ---
-description: Собрать промпт-перенос контекста для новой сессии (закрыть раздутую сессию, начать чистую)
+description: Assemble a context-handoff prompt for a new session (close out a bloated session, start clean)
 allowed-tools: Read, Bash(git branch *), Bash(git log *), Bash(git status *)
 ---
 
-Собери **промпт-перенос** — компактный самодостаточный старт для новой сессии взамен текущей раздутой.
+Assemble a **handoff prompt** — a compact, self-contained kickoff for a new session, replacing the current bloated one.
 
-Принцип: переноси только то, чего **НЕ достать из репозитория** — решения, обоснования, следующий шаг. Всё, что лежит в файлах, не копируй, а **ссылайся путём** — новая сессия сама прочитает нужное. Цель ~15–20 строк, а не пересказ диалога.
+Principle: only carry over what **can't be pulled from the repo** — decisions, rationale, the next step. Anything that lives in files, don't copy — **link by path**, the new session will read it itself. Target ~15–20 lines, not a recap of the dialogue.
 
-Ветку, последний коммит и состояние возьми из `git branch --show-current`, `git log -1 --format="%h %s"`, `git status --short`. Остальные поля — из контекста текущего разговора (поле «Цель/веха» = объявленная на старте цель сессии).
+Take the branch, last commit, and state from `git branch --show-current`, `git log -1 --format="%h %s"`, `git status --short`. The other fields come from the current conversation's context ("Цель/веха" = the session goal declared at the start).
 
-**Гейт проверки (обязателен перед выводом):**
-- «Состояние» (ветка/коммит/готово-uncommitted) — ТОЛЬКО из фактического `git`/`DEVLOG`/`BACKLOG`. Если git-команда падает с ошибкой (напр. `improper chunk offset`) — пиши `состояние не подтверждено: <текст ошибки>`, НЕ выдумывай из памяти.
-- «Решения» — бери из текущего разговора (это решения, которых ещё НЕТ в файлах), но только реально принятые в сессии, не домысленные.
-- Про файлы давай путь + открытый вопрос новой сессии («проверь `prompts/prompt-NN.md` сам»), а НЕ приговор («это мусор», «готово к коммиту»). Вердикт выводит новая сессия чтением, не наследует на веру.
+**Verification gate (mandatory before output):**
+- "Состояние" (branch/commit/uncommitted-ready) — ONLY from actual `git`/`DEVLOG`/`BACKLOG`. If a git command fails (e.g. `improper chunk offset`) — write `состояние не подтверждено: <error text>`, do NOT make it up from memory.
+- "Решения" — take from the current conversation (these are decisions NOT yet in the files), but only ones actually made in this session, not inferred.
+- For files, give a path + an open question for the new session ("check `prompts/prompt-NN.md` yourself"), NOT a verdict ("this is junk", "ready to commit"). The new session reads and decides — it doesn't inherit a verdict on faith.
 
-Выведи ровно один блок в таком формате:
+Output exactly one block, in this format:
 
 ```
 # Перенос контекста
@@ -42,4 +42,4 @@ graphify:    только для вопросов о связях; иначе gr
 Ответь по-русски и коротко. Контекст не пересказывай. Выдай одну строку-запуск для «Следующего шага» (формат: `Выполни prompts/prompt-NN-имя.md строго по Scope`, либо точную команду) — и жди.
 ```
 
-Если переданы $ARGUMENTS — учти их как уточнение цели/следующего шага. После блока одной строкой напомни: дальше `/clear`, затем вставить перенос в новую сессию.
+If $ARGUMENTS were passed — factor them in as a refinement of the goal/next step. After the block, remind in one line: next is `/clear`, then paste the handoff into the new session.

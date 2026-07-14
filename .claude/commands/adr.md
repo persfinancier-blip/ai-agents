@@ -1,12 +1,12 @@
 ---
-description: Создать новый ADR из шаблона docs/adr/0000-template.md
+description: Create a new ADR from the docs/adr/0000-template.md template
 allowed-tools: Read, Write, Edit, Glob
 ---
 
-Создай новый Architecture Decision Record:
+Create a new Architecture Decision Record:
 
-1. Найди следующий свободный номер: `Glob docs/adr/*.md`, возьми максимальный `NNNN` + 1 (шаблон `0000` не считается).
-2. Тема решения — из аргументов: «$ARGUMENTS». Если аргументы пусты — спроси тему у пользователя.
-3. Создай `docs/adr/NNNN-<короткий-слаг-латиницей>.md` по структуре `docs/adr/0000-template.md` (Контекст / Решение / Статус / Последствия), на русском. Статус нового ADR — «Предложено», дата — сегодняшняя. Контекст и Решение заполни из обсуждения в текущем разговоре; чего не знаешь — оставь помеченным `<заполнить>`, не выдумывай.
-4. Добавь строку в таблицу «Индекс» в `docs/adr/README.md`.
-5. Напомни: ADR не противоречат PRD/Management_Model — при конфликте сначала обсуждение с владельцем.
+1. Find the next free number: `Glob docs/adr/*.md`, take the max `NNNN` + 1 (the `0000` template doesn't count).
+2. Take the decision topic from the arguments: "$ARGUMENTS". If the arguments are empty — ask the user for the topic.
+3. Create `docs/adr/NNNN-<short-latin-slug>.md` following the structure of `docs/adr/0000-template.md` (Контекст / Решение / Статус / Последствия), in Russian. The new ADR's status is «Предложено», dated today. Fill in Контекст and Решение from the current conversation's discussion; leave anything unknown marked `<заполнить>` — don't invent it.
+4. Add a row to the «Индекс» table in `docs/adr/README.md`.
+5. Remind the user: ADRs must not contradict the PRD/Management_Model — resolve conflicts with the owner first.
