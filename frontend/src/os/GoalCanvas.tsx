@@ -5,7 +5,7 @@
 // как карта целей); после мутаций связей — полная перезагрузка данных (без
 // оптимизма, как в Ф3).
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import {
   ApiError,
@@ -221,7 +221,6 @@ export function GoalCanvas({
   const [subgoalName, setSubgoalName] = useState('')
   const [subgoalBusy, setSubgoalBusy] = useState(false)
   const [subgoalError, setSubgoalError] = useState<string | null>(null)
-  const subgoalInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -806,7 +805,6 @@ export function GoalCanvas({
                 <div className="gc-popover">
                   <div className="cap">НОВАЯ ПОДЦЕЛЬ</div>
                   <input
-                    ref={subgoalInputRef}
                     className="edit"
                     aria-label="Название новой подцели"
                     placeholder="название подцели"
