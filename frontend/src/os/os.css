@@ -2198,6 +2198,19 @@
   border-color: var(--i25);
   background: rgba(20, 22, 29, 0.7);
 }
+.gc-sub-draft {
+  border-style: dashed;
+  border-color: var(--i25);
+  background: transparent;
+  align-items: center;
+  justify-content: center;
+}
+.gc-sub-draft .nm {
+  color: var(--i45);
+}
+.gc-sub-draft:hover {
+  border-color: rgba(168, 85, 247, 0.4);
+}
 .gc-sat {
   width: 148px;
   background: var(--sf2);

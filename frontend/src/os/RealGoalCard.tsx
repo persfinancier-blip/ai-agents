@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { ApiError, deleteGoal, getGoal, getGoalSubtree, listGoals, patchGoal } from '../api'
+import { ApiError, createGoal, deleteGoal, getGoal, getGoalSubtree, listGoals, patchGoal } from '../api'
 import type { GoalKpiRead, GoalPatch, GoalRead } from '../types'
 import { definitenessLabel, kpiValue, lifecycleLabel, ownerOrDash } from './goalFormat'
 
@@ -16,6 +16,7 @@ type Status = 'loading' | 'ready' | 'notfound' | 'error'
 interface GoalData {
   goal: GoalRead
   parent: GoalRead | null
+  grandparent: GoalRead | null
   children: GoalRead[]
   descendantCount: number
 }
@@ -30,9 +31,20 @@ async function fetchGoalData(goalId: string): Promise<GoalData> {
       parent = null
     }
   }
+  // КОНТЕКСТ — владелец фикс. 2 уровня вверх (не вся цепочка до корня): grandparent
+  // только для parent, дальше не поднимаемся.
+  let grandparent: GoalRead | null = null
+  if (parent?.parent_id) {
+    try {
+      grandparent = await getGoal(parent.parent_id)
+    } catch {
+      grandparent = null
+    }
+  }
   return {
     goal,
     parent,
+    grandparent,
     children: subtree.filter((c) => c.id !== goal.id && c.parent_id === goal.id),
     descendantCount: subtree.length - 1,
   }
@@ -139,11 +151,19 @@ export function RealGoalCard({
 
   const [goal, setGoal] = useState<GoalRead | null>(null)
   const [parent, setParent] = useState<GoalRead | null>(null)
+  const [grandparent, setGrandparent] = useState<GoalRead | null>(null)
   const [children, setChildren] = useState<GoalRead[]>([])
   const [descendantCount, setDescendantCount] = useState(0)
   const [status, setStatus] = useState<Status>('loading')
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  // «+ подцель»: инлайн-имя черновика (F3-паттерн) — commit → createGoal({parent_id}) → reload
+  const [addingSubgoal, setAddingSubgoal] = useState(false)
+  const [subgoalName, setSubgoalName] = useState('')
+  const [subgoalBusy, setSubgoalBusy] = useState(false)
+  const [subgoalError, setSubgoalError] = useState<string | null>(null)
+  const skipSubgoalBlur = useRef(false)
 
   // инлайн-правка полей заголовка: какое поле сейчас редактируется + черновик значения
   const [editingField, setEditingField] = useState<'name' | 'description' | 'owner' | null>(null)
@@ -163,18 +183,23 @@ export function RealGoalCard({
     setStatus('loading')
     setGoal(null)
     setParent(null)
+    setGrandparent(null)
     setChildren([])
     setEditingField(null)
     setEditingKpiId(null)
     setKpiDraft(null)
     setParentPickerOpen(false)
     setActionError(null)
+    setAddingSubgoal(false)
+    setSubgoalName('')
+    setSubgoalError(null)
 
     fetchGoalData(id)
       .then((data) => {
         if (cancelled) return
         setGoal(data.goal)
         setParent(data.parent)
+        setGrandparent(data.grandparent)
         setChildren(data.children)
         setDescendantCount(data.descendantCount)
         setStatus('ready')
@@ -193,6 +218,7 @@ export function RealGoalCard({
     const data = await fetchGoalData(id)
     setGoal(data.goal)
     setParent(data.parent)
+    setGrandparent(data.grandparent)
     setChildren(data.children)
     setDescendantCount(data.descendantCount)
   }
@@ -327,6 +353,53 @@ export function RealGoalCard({
   const setBacklog = (value: boolean) => {
     if (!goal || goal.is_backlog === value) return
     void saveField({ is_backlog: value })
+  }
+
+  /* ── декомпозиция: «+ подцель» (F3-паттерн — инлайн-имя, без оптимизма) ─── */
+
+  const startAddSubgoal = () => {
+    setSubgoalName('')
+    setSubgoalError(null)
+    setAddingSubgoal(true)
+  }
+  const cancelAddSubgoal = () => {
+    setAddingSubgoal(false)
+    setSubgoalName('')
+    setSubgoalError(null)
+  }
+  const commitAddSubgoal = () => {
+    const name = subgoalName.trim()
+    if (!name) {
+      cancelAddSubgoal()
+      return
+    }
+    setSubgoalBusy(true)
+    setSubgoalError(null)
+    createGoal({ name, parent_id: id })
+      .then(() => reload())
+      .then(() => {
+        setAddingSubgoal(false)
+        setSubgoalName('')
+      })
+      .catch(() => setSubgoalError('Не удалось создать подцель'))
+      .finally(() => setSubgoalBusy(false))
+  }
+  const subgoalKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      skipSubgoalBlur.current = true
+      cancelAddSubgoal()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      skipSubgoalBlur.current = true
+      commitAddSubgoal()
+    }
+  }
+  const subgoalBlur = () => {
+    if (skipSubgoalBlur.current) {
+      skipSubgoalBlur.current = false
+      return
+    }
+    commitAddSubgoal()
   }
 
   /* ── удаление ─────────────────────────────────────────────────────────── */
@@ -615,8 +688,32 @@ export function RealGoalCard({
             </div>
 
             <div className="sec">
-              <div className="cap">СТРУКТУРА — РОДИТЕЛЬ И ПРЯМЫЕ ПОДЦЕЛИ</div>
+              <div className="cap">КОНТЕКСТ</div>
               <div className="flow">
+                {grandparent && (
+                  <div
+                    className="wstage"
+                    onClick={() => goTo(grandparent.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && goTo(grandparent.id)}
+                    aria-label={`Перейти к цели уровнем выше: ${grandparent.name}`}
+                  >
+                    <div className="num">⇑</div>
+                    <div>
+                      <div className="nm">{grandparent.name}</div>
+                      <div className="dsc">Родитель родительской цели</div>
+                    </div>
+                    <div className="who">
+                      <div className="p">
+                        <b>{ownerOrDash(grandparent.owner)}</b>
+                      </div>
+                    </div>
+                    <div className="due" />
+                    <div className="st">{definitenessLabel(grandparent)}</div>
+                  </div>
+                )}
+
                 {parent && (
                   <div
                     className="wstage"
@@ -641,6 +738,24 @@ export function RealGoalCard({
                   </div>
                 )}
 
+                {!parent && (
+                  <div className="wstage" style={{ cursor: 'default' }}>
+                    <div className="num">—</div>
+                    <div>
+                      <div className="nm">Корневая цель</div>
+                      <div className="dsc">Родительской цели нет — контекста выше нет.</div>
+                    </div>
+                    <div className="who" />
+                    <div className="due" />
+                    <div className="st" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="sec">
+              <div className="cap">ДЕКОМПОЗИЦИЯ</div>
+              <div className="flow">
                 {children.map((c, i) => (
                   <div
                     key={c.id}
@@ -665,16 +780,41 @@ export function RealGoalCard({
                   </div>
                 ))}
 
-                {!parent && children.length === 0 && (
+                {children.length === 0 && !addingSubgoal && (
                   <div className="wstage" style={{ cursor: 'default' }}>
                     <div className="num">—</div>
                     <div>
-                      <div className="nm">Нет связанных целей</div>
-                      <div className="dsc">Родительской цели нет, подцелей нет — конечный узел дерева.</div>
+                      <div className="nm">подцелей нет — добавьте первую</div>
                     </div>
                     <div className="who" />
                     <div className="due" />
                     <div className="st" />
+                  </div>
+                )}
+
+                {addingSubgoal ? (
+                  <div className="rrow">
+                    <input
+                      className="edit"
+                      style={{ flex: 1 }}
+                      aria-label="Название новой подцели"
+                      placeholder="название подцели"
+                      autoFocus
+                      disabled={subgoalBusy}
+                      value={subgoalName}
+                      onChange={(e) => setSubgoalName(e.target.value)}
+                      onKeyDown={subgoalKeyDown}
+                      onBlur={subgoalBlur}
+                    />
+                  </div>
+                ) : (
+                  <button className="radd" onClick={startAddSubgoal} disabled={busy}>
+                    + подцель
+                  </button>
+                )}
+                {subgoalError && (
+                  <div className="s" style={{ color: 'var(--rk)' }}>
+                    {subgoalError}
                   </div>
                 )}
               </div>

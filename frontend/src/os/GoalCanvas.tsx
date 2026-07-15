@@ -5,10 +5,12 @@
 // как карта целей); после мутаций связей — полная перезагрузка данных (без
 // оптимизма, как в Ф3).
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import {
   ApiError,
   confirmKpiLinkCycle,
+  createGoal,
   createKpiFactor,
   createKpiLink,
   deleteKpiFactor,
@@ -214,6 +216,13 @@ export function GoalCanvas({
   const [factorBusy, setFactorBusy] = useState(false)
   const [factorError, setFactorError] = useState<string | null>(null)
 
+  // «+ подцель» на канвасе (item 3): узел-черновик в секторе подцелей, клик → инлайн-имя
+  const [addingSubgoal, setAddingSubgoal] = useState(false)
+  const [subgoalName, setSubgoalName] = useState('')
+  const [subgoalBusy, setSubgoalBusy] = useState(false)
+  const [subgoalError, setSubgoalError] = useState<string | null>(null)
+  const subgoalInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     let cancelled = false
     setStatus('loading')
@@ -222,6 +231,9 @@ export function GoalCanvas({
     setLinkDraft(null)
     setFactorDraft(null)
     setActionError(null)
+    setAddingSubgoal(false)
+    setSubgoalName('')
+    setSubgoalError(null)
 
     fetchCanvasData(id)
       .then((fresh) => {
@@ -239,19 +251,23 @@ export function GoalCanvas({
     }
   }, [id])
 
-  // Escape: сперва закрывает поповер (фактор → связь → выбор действия), иначе — возврат
-  // к карточке (как «Назад»)
+  // Escape: сперва закрывает черновик подцели, затем поповер (фактор → связь → выбор
+  // действия), иначе — возврат к карточке (как «Назад»)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (factorDraft) setFactorDraft(null)
+      if (addingSubgoal) {
+        setAddingSubgoal(false)
+        setSubgoalName('')
+        setSubgoalError(null)
+      } else if (factorDraft) setFactorDraft(null)
       else if (linkDraft) setLinkDraft(null)
       else if (actionChoice) setActionChoice(null)
       else onBack()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [actionChoice, linkDraft, factorDraft, onBack])
+  }, [addingSubgoal, actionChoice, linkDraft, factorDraft, onBack])
 
   const reload = async () => {
     const fresh = await fetchCanvasData(id)
@@ -312,6 +328,42 @@ export function GoalCanvas({
         )
       })
       .finally(() => setFactorBusy(false))
+  }
+
+  const openAddSubgoal = () => {
+    setSubgoalName('')
+    setSubgoalError(null)
+    setAddingSubgoal(true)
+  }
+  const cancelAddSubgoal = () => {
+    setAddingSubgoal(false)
+    setSubgoalName('')
+    setSubgoalError(null)
+  }
+  const commitAddSubgoal = () => {
+    const name = subgoalName.trim()
+    if (!name) {
+      cancelAddSubgoal()
+      return
+    }
+    setSubgoalBusy(true)
+    setSubgoalError(null)
+    createGoal({ name, parent_id: id })
+      .then(() => reload())
+      .then(() => {
+        setAddingSubgoal(false)
+        setSubgoalName('')
+      })
+      .catch(() => setSubgoalError('Не удалось создать подцель'))
+      .finally(() => setSubgoalBusy(false))
+  }
+  const subgoalKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      cancelAddSubgoal()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      commitAddSubgoal()
+    }
   }
 
   const handleDeleteFactor = (factor: KpiFactorRead) => {
@@ -382,6 +434,13 @@ export function GoalCanvas({
   chunkRows(children, MAX_KPI_ROW).forEach((row, ri) => {
     arcPositions(row.length, 15, 165, SUB_R0 + ri * ROW_STEP).forEach((p, i) => subPos.set(row[i].id, p))
   })
+  // «+ подцель» — синтетический узел вслед за существующими подцелями, в том же секторе
+  const draftSubgoalIds = [...children.map((c) => c.id), '__draft__']
+  const draftSubPos = new Map<string, Pt>()
+  chunkRows(draftSubgoalIds, MAX_KPI_ROW).forEach((row, ri) => {
+    arcPositions(row.length, 15, 165, SUB_R0 + ri * ROW_STEP).forEach((p, i) => draftSubPos.set(row[i], p))
+  })
+  const draftNodePos = draftSubPos.get('__draft__')
 
   const externalIds = new Set<string>()
   for (const l of data.links) {
@@ -649,6 +708,17 @@ export function GoalCanvas({
                 )
               })}
 
+              {draftNodePos && (
+                <button
+                  className="gc-sub gc-sub-draft"
+                  style={{ left: draftNodePos.x, top: draftNodePos.y }}
+                  onClick={openAddSubgoal}
+                  aria-label="Добавить подцель"
+                >
+                  <span className="nm">+ подцель</span>
+                </button>
+              )}
+
               {externalList.map((kpiId) => {
                 const loc = kpiIndex.get(kpiId)
                 const p = satPos.get(kpiId)
@@ -727,6 +797,34 @@ export function GoalCanvas({
                     </div>
                   )}
                   <button className="radd" onClick={() => setLinkDraft(null)}>
+                    отмена
+                  </button>
+                </div>
+              )}
+
+              {addingSubgoal && (
+                <div className="gc-popover">
+                  <div className="cap">НОВАЯ ПОДЦЕЛЬ</div>
+                  <input
+                    ref={subgoalInputRef}
+                    className="edit"
+                    aria-label="Название новой подцели"
+                    placeholder="название подцели"
+                    autoFocus
+                    disabled={subgoalBusy}
+                    value={subgoalName}
+                    onChange={(e) => setSubgoalName(e.target.value)}
+                    onKeyDown={subgoalKeyDown}
+                  />
+                  {subgoalError && (
+                    <div className="s" style={{ color: 'var(--rk)' }}>
+                      {subgoalError}
+                    </div>
+                  )}
+                  <button className="gc-lt" disabled={subgoalBusy || !subgoalName.trim()} onClick={commitAddSubgoal}>
+                    создать
+                  </button>
+                  <button className="radd" onClick={cancelAddSubgoal}>
                     отмена
                   </button>
                 </div>
