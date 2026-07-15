@@ -2,7 +2,7 @@
 name: merger
 description: Git/merge executor — takes a ready set of changes (branch or working tree) plus a commit type/scope/message, and runs it through the full commit → PR → merge → sync cycle safely. Invoke at the end of a pass, once changes are ready to commit and merge.
 tools: Bash, Read
-model: inherit
+model: haiku
 color: red
 ---
 
