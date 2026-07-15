@@ -968,7 +968,8 @@
   font-family: var(--mono);
 }
 
-.os-goal .cap {
+.os-goal .cap,
+.gpop .cap {
   font: 500 10.5px var(--mono);
   color: var(--i40);
   letter-spacing: 0.06em;
@@ -1015,20 +1016,23 @@
   align-items: center;
 }
 
-.os-goal .bdg {
+.os-goal .bdg,
+.gpop .bdg {
   font: 500 11px var(--mono);
   padding: 5px 12px;
   border-radius: var(--r-pill);
   letter-spacing: 0.04em;
 }
 
-.os-goal .b-act {
+.os-goal .b-act,
+.gpop .b-act {
   background: #1e2117;
   border: 1px solid rgba(143, 209, 79, 0.4);
   color: var(--gr);
 }
 
-.os-goal .b-sec {
+.os-goal .b-sec,
+.gpop .b-sec {
   background: var(--sf2);
   border: 1px solid var(--ln);
   color: var(--i55);
@@ -1201,7 +1205,8 @@
   gap: 12px;
 }
 
-.os-goal .rc {
+.os-goal .rc,
+.gpop .rc {
   background: var(--sf);
   border: 1px solid var(--ln);
   border-radius: var(--r-card);
@@ -1249,7 +1254,8 @@
   border-radius: 2px;
 }
 
-.os-goal .rc .note {
+.os-goal .rc .note,
+.gpop .rc .note {
   font: 400 11.5px var(--sans);
   color: var(--i55);
 }
@@ -1527,7 +1533,8 @@
 
 /* Ф3 — инлайн-правка (промпт №22): единый стиль поля ввода поверх текста,
    .big/.mono — размер под заголовок/подпись, база — под строку KPI */
-.os-goal .edit {
+.os-goal .edit,
+.gpop .edit {
   font: 400 12px var(--sans);
   color: var(--ink);
   background: var(--sf2);
@@ -1535,14 +1542,17 @@
   border-radius: var(--r-badge);
   padding: 3px 8px;
 }
-.os-goal .edit::placeholder {
+.os-goal .edit::placeholder,
+.gpop .edit::placeholder {
   color: var(--i35);
 }
-.os-goal .edit.big {
+.os-goal .edit.big,
+.gpop .edit.big {
   font: 700 22px var(--sans);
   padding: 3px 10px;
 }
-.os-goal .edit.mono {
+.os-goal .edit.mono,
+.gpop .edit.mono {
   font: 500 12px var(--mono);
 }
 
@@ -1651,7 +1661,9 @@
 }
 
 .os-goal button:focus-visible,
-.os-goal input:focus-visible {
+.os-goal input:focus-visible,
+.gpop button:focus-visible,
+.gpop input:focus-visible {
   outline: 2px solid var(--gr);
   outline-offset: 1px;
 }
@@ -1703,7 +1715,8 @@
   color: var(--gr);
 }
 
-.os-goal .rc2 {
+.os-goal .rc2,
+.gpop .rc2 {
   grid-column: 1 / -1;
 }
 .os-goal .rcw {
@@ -1716,7 +1729,8 @@
 }
 
 /* строка назначения юнита */
-.os-goal .rrow {
+.os-goal .rrow,
+.gpop .rrow {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1724,17 +1738,20 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font: 400 12px var(--sans);
 }
-.os-goal .rrow:last-of-type {
+.os-goal .rrow:last-of-type,
+.gpop .rrow:last-of-type {
   border-bottom: 0;
 }
-.os-goal .rrow .rname {
+.os-goal .rrow .rname,
+.gpop .rrow .rname {
   color: var(--ink);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.os-goal .rrow .rkind {
+.os-goal .rrow .rkind,
+.gpop .rrow .rkind {
   font: 500 9.5px var(--mono);
   color: var(--i35);
   flex: 1;
@@ -1766,14 +1783,16 @@
   color: var(--gr);
   border-color: rgba(143, 209, 79, 0.4);
 }
-.os-goal .rcost {
+.os-goal .rcost,
+.gpop .rcost {
   font: 500 10.5px var(--mono);
   color: var(--i40);
   min-width: 52px;
   text-align: right;
   white-space: nowrap;
 }
-.os-goal .rdel {
+.os-goal .rdel,
+.gpop .rdel {
   background: none;
   border: 0;
   color: var(--i35);
@@ -1781,10 +1800,12 @@
   cursor: pointer;
   padding: 0 2px;
 }
-.os-goal .rdel:hover {
+.os-goal .rdel:hover,
+.gpop .rdel:hover {
   color: var(--rk);
 }
-.os-goal .radd {
+.os-goal .radd,
+.gpop .radd {
   margin-top: 8px;
   align-self: flex-start;
   background: none;
@@ -1795,7 +1816,8 @@
   padding: 5px 12px;
   cursor: pointer;
 }
-.os-goal .radd:hover {
+.os-goal .radd:hover,
+.gpop .radd:hover {
   color: var(--gr);
   border-color: rgba(143, 209, 79, 0.4);
 }
@@ -2284,5 +2306,158 @@
 @media (max-width: 1200px) {
   .gcanvas-wrap {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ═══════════ карточка цели — попап над картой (Ф7a, промпт №35) ═══════════
+   Оверлей переиспользует .ov/.ov-bg/.ov-orb/.ov-name (стиль орба советника);
+   .gpop-card — правая панель, новый макет только для контейнера/шапки/
+   иконок/квадрантов. Общие ряды/бейджи/инпуты — расширение .os-goal-селекторов
+   выше по файлу (без дублирования блоков). */
+
+.gpop .ov-name {
+  border-width: 1px;
+  border-style: solid;
+}
+
+.gpop-card {
+  position: absolute;
+  right: 5%;
+  top: 6%;
+  bottom: 6%;
+  left: calc(4% + 300px);
+  max-width: 640px;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  border-radius: var(--r-card);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.gpop-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gpop-icons {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* иконки без рамок/подписей — только глыф, вес как у .ov-close */
+.gpop-ic {
+  background: none;
+  border: 0;
+  color: var(--i45);
+  padding: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.gpop-ic:hover {
+  color: var(--ink);
+}
+.gpop-ic:disabled {
+  color: var(--i25);
+  cursor: default;
+}
+.gpop-ic.on {
+  color: var(--op);
+}
+.gpop-ic-danger:hover {
+  color: var(--rk);
+}
+
+.gpop-risk-low {
+  background: #1e2117;
+  border-color: rgba(143, 209, 79, 0.4);
+  color: var(--gr);
+}
+.gpop-risk-medium {
+  background: rgba(232, 192, 74, 0.1);
+  border-color: rgba(232, 192, 74, 0.4);
+  color: var(--op);
+}
+.gpop-risk-high {
+  background: rgba(232, 84, 74, 0.1);
+  border-color: rgba(232, 84, 74, 0.4);
+  color: var(--rk);
+}
+
+.gpop-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gpop-chars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gpop-name {
+  font: 500 20px var(--sans);
+  color: var(--ink);
+  cursor: pointer;
+}
+.gpop-chars .s {
+  font: 400 12.5px var(--sans);
+  color: var(--i55);
+}
+
+/* пунктирное подчёркивание — аффорданс инлайн-правки (F3-паттерн) */
+.gpop-dashed {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--i35);
+}
+.gpop-dashed:hover {
+  border-color: var(--gr);
+  color: var(--ink);
+}
+
+.gpop-stub {
+  color: var(--i35);
+  cursor: default;
+}
+
+.gpop-quad {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.gpop-qtile {
+  border: 1px dashed var(--i25);
+  border-radius: var(--r-badge);
+  padding: 10px 12px;
+  color: var(--i35);
+}
+.gpop-qtitle {
+  font: 500 10px var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--i35);
+}
+.gpop-qlabel {
+  font: 500 13px var(--sans);
+  color: var(--i45);
+  margin-top: 3px;
+}
+
+.gpop-ft {
+  margin-top: auto;
+  font: 500 10.5px var(--mono);
+  color: var(--i35);
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gpop {
+    animation: none;
   }
 }
