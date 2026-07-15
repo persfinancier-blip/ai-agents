@@ -1,5 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "model": "claude-sonnet-5",
+  "alwaysThinkingEnabled": false,
+  "effortLevel": "medium",
   "permissions": {
     "allow": [
       "Read",
@@ -36,7 +39,8 @@
     ]
   },
   "env": {
-    "LLM_PROVIDER": "stub"
+    "LLM_PROVIDER": "stub",
+    "MAX_THINKING_TOKENS": "0"
   },
   "statusLine": {
     "type": "command",
@@ -44,6 +48,16 @@
     "padding": 0
   },
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/session-budget.sh\""
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Edit|Write|NotebookEdit",

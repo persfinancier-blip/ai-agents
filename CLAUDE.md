@@ -37,6 +37,7 @@ Navigation — `docs/full-vision/INDEX.md`; doc-editing rules — `docs/full-vis
 - **Minimal read scope:** file → folder → module; never scan the whole repo. Read canon selectively — only the sections a prompt references, not the whole PRD.
 - **Playwright** — one pass against the DoD checklist at the end of a pass; screenshots only as finals for `renders/`; run `/compact` after a series of browser actions.
 - **Reports stay short:** conclusions and actions; don't recount code or file contents.
+- Guardrails are enforced by `.claude/settings.json` (model pin, thinking off, effort medium, session-budget hook) — do not weaken them without the owner's instruction.
 
 ## Delegation (subagents)
 

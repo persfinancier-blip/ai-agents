@@ -2,6 +2,19 @@
 
 Журнал проходов по репозиторию: дата · ветка/коммит · что сделано · что дальше. Новые записи — сверху. Добавляется командой `/devlog`.
 
+## 2026-07-15 · chore/token-guardrails · не закоммичено
+
+- **Что сделано:**
+  - Промпт №29 выполнен по Scope, один `chore:` PR: причина, по которой владелец сжигал 5-часовой лимит примерно за час — extended thinking включён, effort High, модель не закреплена (UI-дефолт может дрейфовать), субагент `merger` на `inherit`.
+  - В `.claude/settings.json` добавлены `model: claude-sonnet-5`, `alwaysThinkingEnabled: false`, `effortLevel: medium`, а в `env` — `MAX_THINKING_TOKENS: "0"` (жёстко отключает thinking на уровне Anthropic API вне зависимости от UI-тумблеров).
+  - `.claude/agents/merger.md`: `model: inherit` → `model: haiku` — git-механика не требует Sonnet.
+  - Новый хук `.claude/hooks/session-budget.sh`, зарегистрирован в `settings.json` под `hooks.UserPromptSubmit`: если транскрипт сессии превышает 1.5 MB, отдаёт предупреждение владельцу через `additionalContext`; иначе — тихий `exit 0`. Оба пути (ниже/выше порога) проверены вручную.
+  - `CLAUDE.md` → «Token economy»: добавлена строка про то, что гардрейлы закреплены в `.claude/settings.json` и их нельзя ослаблять без прямого указания владельца.
+  - `backend/`/`frontend`/graphify/`protect-main.sh`/`block-secrets.sh`/`format-code.sh` не тронуты.
+- **Дальше:**
+  - Мерж — через субагента `merger` (теперь уже на `haiku`).
+  - Прикладной прогон: понаблюдать в следующих сессиях, действительно ли лимит перестал сжигаться за ~1 час.
+
 ## 2026-07-15 · chore/handoff-trigger-hook · не закоммичено
 
 - **Что сделано:**
