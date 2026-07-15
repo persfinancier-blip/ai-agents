@@ -12,6 +12,7 @@ import {
   RAIL_OFF,
 } from './data'
 import type { ChatMsg, RailBlock } from './data'
+import { GoalPopup } from './GoalPopup'
 import { buildGoalForest, layoutForest } from './goalTree'
 import type { GoalNode } from './goalTree'
 
@@ -409,9 +410,11 @@ const ADVISOR_UNREAD: Record<string, number> = { cfo: 3, strat: 1 }
 export function CommandPanel({
   decisionsOnMove,
   onOpenGoal,
+  onOpenCanvas,
 }: {
   decisionsOnMove: number | null
-  onOpenGoal: (id: string, source: 'demo' | 'real') => void
+  onOpenGoal: (id: string) => void
+  onOpenCanvas: (id: string) => void
 }) {
   const [slotId, setSlotId] = useState(ADVISOR_SLOTS[0].id)
   const [extra, setExtra] = useState<Record<string, ChatMsg[]>>({})
@@ -423,6 +426,9 @@ export function CommandPanel({
   const [goals, setGoals] = useState<GoalRead[] | null>(null)
   const [goalsError, setGoalsError] = useState(false)
 
+  // попап карточки цели (Ф7a, промпт №35) — рендерится поверх карты, без смены роута
+  const [popupGoalId, setPopupGoalId] = useState<string | null>(null)
+
   // Ф3 (промпт №22): черновик-узел двойного клика по полотну — координаты клика
   // живут только тут, до сохранения; поля «позиция узла» в модели нет и не будет
   // (см. goalTree.ts) — после POST карта перезагружается и узел встаёт по автораскладке.
@@ -432,10 +438,17 @@ export function CommandPanel({
   const skipDraftBlur = useRef(false)
   const draftInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
+  const refreshGoals = () => {
     listGoals()
-      .then(setGoals)
+      .then((fresh) => {
+        setGoals(fresh)
+        setGoalsError(false)
+      })
       .catch(() => setGoalsError(true))
+  }
+
+  useEffect(() => {
+    refreshGoals()
   }, [])
 
   useEffect(() => {
@@ -567,9 +580,9 @@ export function CommandPanel({
                   Не удалось загрузить карту целей
                 </div>
               ) : loading ? null : hasRealGoals ? (
-                <RealGoalMap forest={forest} onOpenGoal={(id) => onOpenGoal(id, 'real')} />
+                <RealGoalMap forest={forest} onOpenGoal={setPopupGoalId} />
               ) : (
-                <DemoGoalMap onOpenGoal={(id) => onOpenGoal(id, 'demo')} />
+                <DemoGoalMap onOpenGoal={onOpenGoal} />
               )}
 
               {draft && (
@@ -694,6 +707,19 @@ export function CommandPanel({
                 </div>
               </div>
             </div>
+          )}
+
+          {popupGoalId && (
+            <GoalPopup
+              goalId={popupGoalId}
+              branch={branchStyle(popupGoalId, false)}
+              onClose={() => setPopupGoalId(null)}
+              onOpenCanvas={(id) => {
+                setPopupGoalId(null)
+                onOpenCanvas(id)
+              }}
+              onChanged={refreshGoals}
+            />
           )}
         </div>
       </div>

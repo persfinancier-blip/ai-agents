@@ -3,7 +3,6 @@ import { listDecisions } from './api'
 import { CommandPanel } from './os/CommandPanel'
 import { GoalCanvas } from './os/GoalCanvas'
 import { GoalCard } from './os/GoalCard'
-import { RealGoalCard } from './os/RealGoalCard'
 import { GOAL_TREE } from './os/data'
 import type { OsGoal } from './os/data'
 import './os/os.css'
@@ -11,13 +10,12 @@ import './os/os.css'
 function App() {
   // дерево целей живёт здесь, чтобы правки ресурсов переживали навигацию
   const [goals, setGoals] = useState<OsGoal[]>(GOAL_TREE)
-  // путь drill-down: [] — панель, [rootId, stageId, …] — карточка цели
+  // путь drill-down демо-карточки: [] — панель, [rootId, stageId, …] — демо-карточка
   const [goalPath, setGoalPath] = useState<string[]>([])
-  // источник открытой карточки: узел демо-карты или реального Goal API (промпт №18)
-  const [goalSource, setGoalSource] = useState<'demo' | 'real'>('demo')
-  // канвас постановки (Ф4, промпт №23) — экран поверх той же цели, только для real;
-  // демо-карточки не касается
-  const [canvasOpen, setCanvasOpen] = useState(false)
+  // канвас постановки (Ф4, промпт №23) — единственный полноэкранный переход для
+  // реальных целей после удаления RealGoalCard.tsx (Ф7a, промпт №35); путь для
+  // него ведёт себя как раньше — [goalId] с возможной последующей навигацией.
+  const [canvasPath, setCanvasPath] = useState<string[] | null>(null)
   // единственные живые данные M5 — Decisions из реального API (счётчик в баре)
   const [decisionsOnMove, setDecisionsOnMove] = useState<number | null>(null)
 
@@ -27,43 +25,37 @@ function App() {
       .catch(() => setDecisionsOnMove(null))
   }, [])
 
-  const openGoal = (id: string, source: 'demo' | 'real') => {
-    setGoalSource(source)
+  const openGoal = (id: string) => {
     setGoalPath([id])
-    setCanvasOpen(false)
   }
 
-  if (goalPath.length === 0) {
-    return <CommandPanel decisionsOnMove={decisionsOnMove} onOpenGoal={openGoal} />
-  }
-
-  if (goalSource === 'real' && canvasOpen) {
+  if (canvasPath) {
     return (
       <GoalCanvas
-        path={goalPath}
-        onNavigate={(p) => {
-          setGoalPath(p)
-          setCanvasOpen(false)
-        }}
-        onBack={() => setCanvasOpen(false)}
+        path={canvasPath}
+        onNavigate={setCanvasPath}
+        onBack={() => setCanvasPath(null)}
       />
     )
   }
 
-  return goalSource === 'real' ? (
-    <RealGoalCard
-      path={goalPath}
-      onNavigate={setGoalPath}
-      onBack={() => setGoalPath([])}
-      onOpenCanvas={() => setCanvasOpen(true)}
-    />
-  ) : (
-    <GoalCard
-      goals={goals}
-      path={goalPath}
-      onNavigate={setGoalPath}
-      onBack={() => setGoalPath([])}
-      onUpdate={setGoals}
+  if (goalPath.length > 0) {
+    return (
+      <GoalCard
+        goals={goals}
+        path={goalPath}
+        onNavigate={setGoalPath}
+        onBack={() => setGoalPath([])}
+        onUpdate={setGoals}
+      />
+    )
+  }
+
+  return (
+    <CommandPanel
+      decisionsOnMove={decisionsOnMove}
+      onOpenGoal={openGoal}
+      onOpenCanvas={(id) => setCanvasPath([id])}
     />
   )
 }
