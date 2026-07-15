@@ -5,6 +5,7 @@ import type {
   GoalCreate,
   GoalPatch,
   GoalRead,
+  KpiFactorCreate,
   KpiFactorRead,
   KpiLinkCreate,
   KpiLinkCycleRead,
@@ -89,3 +90,8 @@ export const confirmKpiLinkCycle = (id: string, confirmed: boolean) =>
 
 export const listKpiFactors = (compositeKpiId: string) =>
   request<KpiFactorRead[]>(`/kpi-factors?composite_kpi_id=${encodeURIComponent(compositeKpiId)}`)
+
+export const createKpiFactor = (payload: KpiFactorCreate) =>
+  request<KpiFactorRead>('/kpi-factors', { method: 'POST', body: JSON.stringify(payload) })
+
+export const deleteKpiFactor = (id: string) => request<void>(`/kpi-factors/${id}`, { method: 'DELETE' })

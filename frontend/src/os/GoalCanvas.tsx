@@ -9,7 +9,9 @@ import { useEffect, useState } from 'react'
 import {
   ApiError,
   confirmKpiLinkCycle,
+  createKpiFactor,
   createKpiLink,
+  deleteKpiFactor,
   deleteKpiLink,
   getGoal,
   getGoalSubtree,
@@ -174,6 +176,19 @@ interface LinkDraft {
   targetKpiId: string | null
 }
 
+interface FactorDraft {
+  compositeKpiId: string
+  targetGoalId: string | null
+  factorKpiId: string | null
+  weight: string
+}
+
+// Шаг выбора действия по клику на собственный KPI: связать (Ф4) или добавить фактор
+// композита (Ф5) — оба флоу дальше не пересекаются.
+interface ActionChoice {
+  kpiId: string
+}
+
 export function GoalCanvas({
   path,
   onNavigate,
@@ -190,15 +205,22 @@ export function GoalCanvas({
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
+  const [actionChoice, setActionChoice] = useState<ActionChoice | null>(null)
   const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null)
   const [linkBusy, setLinkBusy] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
+
+  const [factorDraft, setFactorDraft] = useState<FactorDraft | null>(null)
+  const [factorBusy, setFactorBusy] = useState(false)
+  const [factorError, setFactorError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     setStatus('loading')
     setData(null)
+    setActionChoice(null)
     setLinkDraft(null)
+    setFactorDraft(null)
     setActionError(null)
 
     fetchCanvasData(id)
@@ -217,16 +239,19 @@ export function GoalCanvas({
     }
   }, [id])
 
-  // Escape: сперва закрывает поповер связи, иначе — возврат к карточке (как «Назад»)
+  // Escape: сперва закрывает поповер (фактор → связь → выбор действия), иначе — возврат
+  // к карточке (как «Назад»)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (linkDraft) setLinkDraft(null)
+      if (factorDraft) setFactorDraft(null)
+      else if (linkDraft) setLinkDraft(null)
+      else if (actionChoice) setActionChoice(null)
       else onBack()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [linkDraft, onBack])
+  }, [actionChoice, linkDraft, factorDraft, onBack])
 
   const reload = async () => {
     const fresh = await fetchCanvasData(id)
@@ -235,9 +260,22 @@ export function GoalCanvas({
 
   const goTo = (goalId: string) => onNavigate([...path, goalId])
 
-  const openLink = (kpiId: string) => {
+  const openActionChoice = (kpiId: string) => {
+    setActionChoice({ kpiId })
+  }
+
+  const chooseLink = () => {
+    if (!actionChoice) return
     setLinkError(null)
-    setLinkDraft({ sourceKpiId: kpiId, targetGoalId: null, targetKpiId: null })
+    setLinkDraft({ sourceKpiId: actionChoice.kpiId, targetGoalId: null, targetKpiId: null })
+    setActionChoice(null)
+  }
+
+  const chooseFactor = () => {
+    if (!actionChoice) return
+    setFactorError(null)
+    setFactorDraft({ compositeKpiId: actionChoice.kpiId, targetGoalId: null, factorKpiId: null, weight: '' })
+    setActionChoice(null)
   }
 
   const submitLink = (type: KpiLinkType) => {
@@ -255,6 +293,37 @@ export function GoalCanvas({
         )
       })
       .finally(() => setLinkBusy(false))
+  }
+
+  const submitFactor = () => {
+    if (!factorDraft?.factorKpiId || factorBusy) return
+    const weight = Number(factorDraft.weight)
+    if (!Number.isFinite(weight)) return
+    setFactorBusy(true)
+    setFactorError(null)
+    createKpiFactor({ composite_kpi_id: factorDraft.compositeKpiId, factor_kpi_id: factorDraft.factorKpiId, weight })
+      .then(() => reload())
+      .then(() => setFactorDraft(null))
+      .catch((err: unknown) => {
+        setFactorError(
+          err instanceof ApiError && err.status === 409
+            ? 'Такой фактор уже добавлен'
+            : 'Нельзя добавить фактор: KPI должен иметь числовой таргет',
+        )
+      })
+      .finally(() => setFactorBusy(false))
+  }
+
+  const handleDeleteFactor = (factor: KpiFactorRead) => {
+    if (busy || !data) return
+    const label = data.kpiIndex.get(factor.factor_kpi_id)?.kpi.name ?? factor.factor_kpi_id
+    if (!window.confirm(`Убрать фактор «${label}» (вес ×${factor.weight})?`)) return
+    setBusy(true)
+    setActionError(null)
+    deleteKpiFactor(factor.id)
+      .then(() => reload())
+      .catch(() => setActionError('Не удалось убрать фактор'))
+      .finally(() => setBusy(false))
   }
 
   const handleDeleteLink = (link: KpiLinkRead) => {
@@ -370,6 +439,8 @@ export function GoalCanvas({
   const checkMark = { ok: '✓', wr: '⚠', er: '✕' } as const
 
   const draftGoal = linkDraft?.targetGoalId ? allGoals.find((g) => g.id === linkDraft.targetGoalId) : undefined
+  const draftFactorGoal = factorDraft?.targetGoalId ? allGoals.find((g) => g.id === factorDraft.targetGoalId) : undefined
+  const actionChoiceKpi = actionChoice ? ownKpiById.get(actionChoice.kpiId) : undefined
 
   return (
     <div className="os-goal">
@@ -463,12 +534,27 @@ export function GoalCanvas({
                     nodeGap(f.factor_kpi_id),
                     KPI_GAP,
                   )
+                  const factorLabel = `${kpiLabel(f.factor_kpi_id)} (×${f.weight})`
                   return (
                     <g key={`f-${f.id}`}>
                       <line x1={t.sx} y1={t.sy} x2={t.tx} y2={t.ty} className="gc-factor" />
                       <text x={(t.sx + t.tx) / 2} y={(t.sy + t.ty) / 2 - 6} textAnchor="middle" className="gc-weight">
                         ×{f.weight}
                       </text>
+                      <line
+                        x1={t.sx}
+                        y1={t.sy}
+                        x2={t.tx}
+                        y2={t.ty}
+                        className="gc-edge-hit"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Убрать фактор «${factorLabel}»`}
+                        onClick={() => handleDeleteFactor(f)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleDeleteFactor(f)
+                        }}
+                      />
                     </g>
                   )
                 })}
@@ -535,8 +621,8 @@ export function GoalCanvas({
                     key={k.id}
                     className={`gc-kpi${k.computed_value != null ? ' composite' : ''}${cycleState ? ` gc-cycle-${cycleState}` : ''}`}
                     style={{ left: p.x, top: p.y }}
-                    onClick={() => openLink(k.id)}
-                    aria-label={`Связать KPI «${k.name}»`}
+                    onClick={() => openActionChoice(k.id)}
+                    aria-label={`Действия с KPI «${k.name}»`}
                   >
                     <span className="nm">{k.name}</span>
                     <span className="sb">{kpiValue(k)}</span>
@@ -641,6 +727,95 @@ export function GoalCanvas({
                     </div>
                   )}
                   <button className="radd" onClick={() => setLinkDraft(null)}>
+                    отмена
+                  </button>
+                </div>
+              )}
+
+              {actionChoice && (
+                <div className="gc-popover">
+                  <div className="cap">KPI «{actionChoiceKpi?.name}»</div>
+                  <div className="gc-linktypes">
+                    <button className="gc-lt" onClick={chooseLink}>
+                      связать KPI…
+                    </button>
+                    <button className="gc-lt" onClick={chooseFactor}>
+                      добавить фактор…
+                    </button>
+                  </div>
+                  <button className="radd" onClick={() => setActionChoice(null)}>
+                    отмена
+                  </button>
+                </div>
+              )}
+
+              {factorDraft && (
+                <div className="gc-popover">
+                  <div className="cap">ФАКТОР ДЛЯ KPI «{ownKpiById.get(factorDraft.compositeKpiId)?.name}»</div>
+                  {!factorDraft.targetGoalId ? (
+                    <div className="rpool">
+                      {allGoals.map((g) => (
+                        <button key={g.id} onClick={() => setFactorDraft({ ...factorDraft, targetGoalId: g.id })}>
+                          <b>{g.name}</b>
+                          <em>{g.kpis.length} KPI</em>
+                        </button>
+                      ))}
+                    </div>
+                  ) : !factorDraft.factorKpiId ? (
+                    <>
+                      <button
+                        className="radd"
+                        onClick={() => setFactorDraft({ ...factorDraft, targetGoalId: null })}
+                      >
+                        ← другая цель
+                      </button>
+                      <div className="rpool">
+                        {(draftFactorGoal?.kpis ?? [])
+                          .filter((k) => k.id && k.id !== factorDraft.compositeKpiId && k.target != null)
+                          .map((k) => (
+                            <button
+                              key={k.id}
+                              onClick={() => setFactorDraft({ ...factorDraft, factorKpiId: k.id as string })}
+                            >
+                              <b>{k.name}</b>
+                              <em>{kpiValue(k)}</em>
+                            </button>
+                          ))}
+                        {!draftFactorGoal?.kpis.some(
+                          (k) => k.id && k.id !== factorDraft.compositeKpiId && k.target != null,
+                        ) && <div className="note">у цели нет измеримых KPI</div>}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <button className="radd" onClick={() => setFactorDraft({ ...factorDraft, factorKpiId: null })}>
+                        ← другой KPI
+                      </button>
+                      <label className="s" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        вес
+                        <input
+                          type="number"
+                          step="any"
+                          autoFocus
+                          value={factorDraft.weight}
+                          onChange={(e) => setFactorDraft({ ...factorDraft, weight: e.target.value })}
+                        />
+                      </label>
+                      <button
+                        className="gc-lt"
+                        disabled={factorBusy || factorDraft.weight.trim() === '' || !Number.isFinite(Number(factorDraft.weight))}
+                        onClick={submitFactor}
+                      >
+                        добавить фактор
+                      </button>
+                    </>
+                  )}
+                  {factorError && (
+                    <div className="s" style={{ color: 'var(--rk)' }}>
+                      {factorError}
+                    </div>
+                  )}
+                  <button className="radd" onClick={() => setFactorDraft(null)}>
                     отмена
                   </button>
                 </div>
