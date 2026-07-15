@@ -57,6 +57,7 @@ A session = **one declared outcome**, not a diary. A long session is expensive: 
 By default a handoff is **not** proposed — only at these points, not as a ritual on every step. There's no exact token counter; "goal met / context drifted" is the "time to go" detector. The handoff generator is the `/handoff` command (Bootstrap fills itself in).
 
 - **Триггер `/handoff` (привязан к шагу проверки):** when post-pass MCP verification confirms the pass achieved the milestone's result and Cowork is about to report «веха закрыта», that **same message must also propose `/handoff` + a fresh session** — it must not offer to continue new work inside the closed milestone's session. The trigger is the concrete moment "about to declare «веха закрыта»", not the abstract "context switch".
+- **После «веха закрыта» — новая работа в этой сессии не начинается:** once the `/handoff` proposal has fired, ANY new request outside the closed milestone's tails (a fix inside the just-merged PR, its DEVLOG/BACKLOG records) gets the same response first — re-propose `/handoff` + a fresh session, and do not start the new work here. New product questions from the owner are the typical drift vector: they are **new work, not tails**. This binds the "context drifted" trigger (item 3) to a concrete rule instead of a judgement call.
 
 ## Working with the `prompts/` folder
 
