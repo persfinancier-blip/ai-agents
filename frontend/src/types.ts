@@ -127,3 +127,9 @@ export interface KpiFactorRead {
   factor_kpi_id: string
   weight: number
 }
+
+export interface KpiFactorCreate {
+  composite_kpi_id: string
+  factor_kpi_id: string
+  weight: number
+}
