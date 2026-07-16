@@ -347,8 +347,8 @@ export function GoalPopup({
         </div>
       </div>
 
-      <div className="gpop-card">
-        <div className="gpop-hd">
+      <div className="gpop-col">
+        <div className="gpop-bub gpop-hd" style={{ borderColor: branch.bd }}>
           <span className="cap">КАРТОЧКА ЦЕЛИ</span>
           {status === 'ready' && goal && (
             <span className="gpop-icons">
@@ -423,196 +423,194 @@ export function GoalPopup({
           )}
         </div>
 
-        <div className="gpop-body">
-          {status !== 'ready' && (
-            <div style={{ color: 'var(--i55)', padding: '30px 0' }}>
-              {status === 'loading' && 'Загрузка…'}
-              {status === 'notfound' && 'Цель не найдена — возможно, её удалили.'}
-              {status === 'error' && 'Не удалось загрузить цель'}
-            </div>
-          )}
+        {status !== 'ready' && (
+          <div className="gpop-bub" style={{ borderColor: branch.bd, color: 'var(--i55)' }}>
+            {status === 'loading' && 'Загрузка…'}
+            {status === 'notfound' && 'Цель не найдена — возможно, её удалили.'}
+            {status === 'error' && 'Не удалось загрузить цель'}
+          </div>
+        )}
 
-          {status === 'ready' && goal && (
-            <>
-              <div className="gpop-chars">
-                {editingField === 'name' ? (
-                  <input
-                    className="edit big"
-                    aria-label="Название цели"
-                    autoFocus
-                    disabled={busy}
-                    value={fieldDraft}
-                    onChange={(e) => setFieldDraft(e.target.value)}
-                    onKeyDown={fieldKeyDown}
-                    onBlur={fieldBlur}
-                  />
-                ) : (
-                  <h1
-                    role="button"
-                    tabIndex={0}
-                    className="gpop-name"
-                    onClick={() => startField('name', goal.name)}
-                    onKeyDown={(e) => e.key === 'Enter' && startField('name', goal.name)}
-                    aria-label="Изменить название цели"
-                  >
-                    {goal.name}
-                  </h1>
-                )}
+        {status === 'ready' && goal && (
+          <>
+            <div className="gpop-bub gpop-chars" style={{ borderColor: branch.bd }}>
+              {editingField === 'name' ? (
+                <input
+                  className="edit big"
+                  aria-label="Название цели"
+                  autoFocus
+                  disabled={busy}
+                  value={fieldDraft}
+                  onChange={(e) => setFieldDraft(e.target.value)}
+                  onKeyDown={fieldKeyDown}
+                  onBlur={fieldBlur}
+                />
+              ) : (
+                <h1
+                  role="button"
+                  tabIndex={0}
+                  className="gpop-name"
+                  onClick={() => startField('name', goal.name)}
+                  onKeyDown={(e) => e.key === 'Enter' && startField('name', goal.name)}
+                  aria-label="Изменить название цели"
+                >
+                  {goal.name}
+                </h1>
+              )}
 
-                {editingField === 'description' ? (
-                  <input
-                    className="edit mono"
-                    aria-label="Описание цели"
-                    autoFocus
-                    disabled={busy}
-                    placeholder="описание…"
-                    value={fieldDraft}
-                    onChange={(e) => setFieldDraft(e.target.value)}
-                    onKeyDown={fieldKeyDown}
-                    onBlur={fieldBlur}
-                  />
-                ) : (
-                  <div
-                    className="s gpop-dashed"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => startField('description', goal.description ?? '')}
-                    onKeyDown={(e) => e.key === 'Enter' && startField('description', goal.description ?? '')}
-                    aria-label="Изменить описание цели"
-                  >
-                    {goal.description || 'без описания — нажмите, чтобы добавить'}
-                  </div>
-                )}
-
-                <div className="s">
-                  отв.{' '}
-                  {editingField === 'owner' ? (
-                    <input
-                      className="edit mono"
-                      aria-label="Владелец цели"
-                      autoFocus
-                      disabled={busy}
-                      value={fieldDraft}
-                      onChange={(e) => setFieldDraft(e.target.value)}
-                      onKeyDown={fieldKeyDown}
-                      onBlur={fieldBlur}
-                    />
-                  ) : (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className="gpop-dashed"
-                      onClick={() => startField('owner', goal.owner)}
-                      onKeyDown={(e) => e.key === 'Enter' && startField('owner', goal.owner)}
-                      title="без владельца цель в тумане"
-                      aria-label="Изменить владельца цели"
-                    >
-                      {ownerOrDash(goal.owner)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="sec">
-                <div className="cap">KPI ЦЕЛИ · {goal.kpis.length} ШТ.</div>
-                <div className="rc rc2">
-                  {goal.kpis.map((k) => {
-                    const composite = k.computed_value != null
-                    if (editingKpiId === k.id && k.id && kpiDraft) {
-                      return (
-                        <KpiFieldsRow
-                          key={k.id}
-                          value={kpiDraft}
-                          onChange={setKpiDraft}
-                          onCommit={commitKpiEdit}
-                          onCancel={cancelKpiEdit}
-                          disabled={busy}
-                        />
-                      )
-                    }
-                    const editable = !composite && !!k.id
-                    return (
-                      <div
-                        key={k.id ?? k.name}
-                        className="rrow"
-                        role={editable ? 'button' : undefined}
-                        tabIndex={editable ? 0 : undefined}
-                        style={{ cursor: editable ? 'pointer' : 'default' }}
-                        onClick={editable ? () => startEditKpi(k) : undefined}
-                        onKeyDown={editable ? (e) => e.key === 'Enter' && startEditKpi(k) : undefined}
-                        aria-label={editable ? `Изменить KPI ${k.name}` : undefined}
-                      >
-                        <span className="rname" style={{ flex: 1 }}>
-                          {k.name}
-                        </span>
-                        <span className="rkind">{composite ? 'РАСЧЁТ' : 'ПЛАН'}</span>
-                        <span className="rcost">{kpiValue(k)}</span>
-                        {k.id && !composite && (
-                          <button
-                            className="rdel"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              removeKpi(k.id!)
-                            }}
-                            aria-label={`Удалить KPI ${k.name}`}
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-                  {!goal.kpis.length && <div className="note">KPI не заданы</div>}
-
-                  {kpiDraft && editingKpiId === null ? (
-                    <KpiFieldsRow
-                      value={kpiDraft}
-                      onChange={setKpiDraft}
-                      onCommit={commitAddKpi}
-                      onCancel={cancelAddKpi}
-                      disabled={busy}
-                    />
-                  ) : (
-                    <button className="radd" onClick={startAddKpi} disabled={busy}>
-                      + добавить KPI
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="sec">
-                <div className="cap">СРОК</div>
-                <div className="rrow gpop-stub" title="появится позже">
-                  <svg width="14" height="14" viewBox="0 0 24 24" style={{ marginRight: 8 }}>
-                    <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3 3" />
-                    <path d="M12 8 V12 L15 14" fill="none" stroke="currentColor" strokeWidth="1.6" />
-                  </svg>
-                  не задан
-                </div>
-              </div>
-
-              <div className="sec">
-                <div className="cap">ВАЖНОСТЬ · СРОЧНОСТЬ</div>
-                <div className="gpop-quad">
-                  {QUADRANTS.map((q) => (
-                    <div key={q.key} className="gpop-qtile" title={q.title}>
-                      <div className="gpop-qtitle">{q.title}</div>
-                      <div className="gpop-qlabel">{q.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {actionError && (
-                <div className="s" style={{ color: 'var(--rk)' }}>
-                  {actionError}
+              {editingField === 'description' ? (
+                <input
+                  className="edit mono"
+                  aria-label="Описание цели"
+                  autoFocus
+                  disabled={busy}
+                  placeholder="описание…"
+                  value={fieldDraft}
+                  onChange={(e) => setFieldDraft(e.target.value)}
+                  onKeyDown={fieldKeyDown}
+                  onBlur={fieldBlur}
+                />
+              ) : (
+                <div
+                  className="s gpop-dashed"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => startField('description', goal.description ?? '')}
+                  onKeyDown={(e) => e.key === 'Enter' && startField('description', goal.description ?? '')}
+                  aria-label="Изменить описание цели"
+                >
+                  {goal.description || 'без описания — нажмите, чтобы добавить'}
                 </div>
               )}
-            </>
-          )}
-        </div>
 
-        <div className="gpop-ft">Esc / клик мимо — закрыть</div>
+              <div className="s">
+                отв.{' '}
+                {editingField === 'owner' ? (
+                  <input
+                    className="edit mono"
+                    aria-label="Владелец цели"
+                    autoFocus
+                    disabled={busy}
+                    value={fieldDraft}
+                    onChange={(e) => setFieldDraft(e.target.value)}
+                    onKeyDown={fieldKeyDown}
+                    onBlur={fieldBlur}
+                  />
+                ) : (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="gpop-dashed"
+                    onClick={() => startField('owner', goal.owner)}
+                    onKeyDown={(e) => e.key === 'Enter' && startField('owner', goal.owner)}
+                    title="без владельца цель в тумане"
+                    aria-label="Изменить владельца цели"
+                  >
+                    {ownerOrDash(goal.owner)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="gpop-bub" style={{ borderColor: branch.bd }}>
+              <div className="cap">KPI ЦЕЛИ · {goal.kpis.length} ШТ.</div>
+              <div className="rc rc2">
+                {goal.kpis.map((k) => {
+                  const composite = k.computed_value != null
+                  if (editingKpiId === k.id && k.id && kpiDraft) {
+                    return (
+                      <KpiFieldsRow
+                        key={k.id}
+                        value={kpiDraft}
+                        onChange={setKpiDraft}
+                        onCommit={commitKpiEdit}
+                        onCancel={cancelKpiEdit}
+                        disabled={busy}
+                      />
+                    )
+                  }
+                  const editable = !composite && !!k.id
+                  return (
+                    <div
+                      key={k.id ?? k.name}
+                      className="rrow"
+                      role={editable ? 'button' : undefined}
+                      tabIndex={editable ? 0 : undefined}
+                      style={{ cursor: editable ? 'pointer' : 'default' }}
+                      onClick={editable ? () => startEditKpi(k) : undefined}
+                      onKeyDown={editable ? (e) => e.key === 'Enter' && startEditKpi(k) : undefined}
+                      aria-label={editable ? `Изменить KPI ${k.name}` : undefined}
+                    >
+                      <span className="rname" style={{ flex: 1 }}>
+                        {k.name}
+                      </span>
+                      <span className="rkind">{composite ? 'РАСЧЁТ' : 'ПЛАН'}</span>
+                      <span className="rcost">{kpiValue(k)}</span>
+                      {k.id && !composite && (
+                        <button
+                          className="rdel"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeKpi(k.id!)
+                          }}
+                          aria-label={`Удалить KPI ${k.name}`}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+                {!goal.kpis.length && <div className="note">KPI не заданы</div>}
+
+                {kpiDraft && editingKpiId === null ? (
+                  <KpiFieldsRow
+                    value={kpiDraft}
+                    onChange={setKpiDraft}
+                    onCommit={commitAddKpi}
+                    onCancel={cancelAddKpi}
+                    disabled={busy}
+                  />
+                ) : (
+                  <button className="radd" onClick={startAddKpi} disabled={busy}>
+                    + добавить KPI
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="gpop-bub" style={{ borderColor: branch.bd }}>
+              <div className="cap">СРОК</div>
+              <div className="rrow gpop-stub" title="появится позже">
+                <svg width="14" height="14" viewBox="0 0 24 24" style={{ marginRight: 8 }}>
+                  <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3 3" />
+                  <path d="M12 8 V12 L15 14" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+                не задан
+              </div>
+            </div>
+
+            <div className="gpop-bub" style={{ borderColor: branch.bd }}>
+              <div className="cap">ВАЖНОСТЬ · СРОЧНОСТЬ</div>
+              <div className="gpop-quad">
+                {QUADRANTS.map((q) => (
+                  <div key={q.key} className="gpop-qtile" title={q.title}>
+                    <div className="gpop-qtitle">{q.title}</div>
+                    <div className="gpop-qlabel">{q.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {actionError && (
+              <div className="gpop-bub" style={{ borderColor: branch.bd, color: 'var(--rk)' }}>
+                {actionError}
+              </div>
+            )}
+
+            <div className="gpop-ft">Esc / клик мимо — закрыть</div>
+          </>
+        )}
       </div>
     </div>
   )
