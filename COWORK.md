@@ -66,6 +66,17 @@ By default a handoff is **not** proposed — only at these points, not as a ritu
 - `prompts/_done/` is the archive and a **style reference**: if unsure of the format, look there.
 - The prompt lives **in the file** under `prompts/`; the owner only gets a **short kickoff line** in chat for Claude Code: `Выполни prompts/prompt-NN-<имя>.md по шагам, строго в рамках Scope`. **Don't duplicate the whole prompt text in chat** — Claude Code reads the file itself (that's the economy). No walls of text at the start.
 - **Model + effort recommendation at both milestone-opening points:** Cowork includes «Рекомендуемая модель: X, усилие: Y» with a one-line rationale (example: «Открываем веху Ф8, промпт prompts/prompt-NN-….md, рекомендуемая модель Fable 5, усилие hard — многослойный рефакторинг») in **(a) the handoff block** that opens a new session for a milestone, and **(b) the kickoff message** for Claude Code — the repetition is deliberate: the owner sees it both when starting the session and when launching the pass. The default stays Sonnet/medium and the `.claude/settings.json` guardrails stay untouched; a model above Sonnet is legalized ONLY by the owner confirming such a recommendation — that confirmation is the "explicit instruction" required by CLAUDE.md "Token economy".
+- **GitHub Actions worker (optional path):** Cowork may create the task directly as a
+  GitHub issue labeled `ai-task` via the GitHub MCP instead of (or in addition to) a
+  prompt file — the issue body uses the same prompt format (Scope / Constraints /
+  DoD). The prompt file still lands in `prompts/` as the archive copy. Creating issues
+  and PR comments is not a git write and is allowed to Cowork; branches, commits, and
+  merges remain exclusively Claude Code's zone (see `.claude/rules/github-automation.md`).
+  The kickoff line in chat becomes optional in this path — the `ai-task` label itself
+  starts the pass on the GitHub runner.
+- **Prompt naming:** product prompts are `prompt-NN-short-name.md`; infrastructure/process
+  prompts (Cowork ↔ Claude Code pipeline itself) are `prompt-ops-NN-short-name.md`,
+  numbered independently. Both archive to `prompts/_done/` the same way.
 
 > **Tail cleanup (mandatory in every prompt for Claude Code):** the task's prompt file lives at `prompts/prompt-NN-*.md` (Cowork put it there, doesn't commit it). Claude Code: (1) **Step 0 — preflight:** `git status` + `git log origin/main..HEAD`; if the tree is dirty or there's anything unpushed — surface it and untangle it deliberately (right branch, Conventional commit, no `git add .`), don't blind-merge open PRs; (2) commits the prompt file directly into `prompts/_done/` together with the rest of the work (or as a separate `docs:`/`chore:` commit, if the slice is code) — it's already executed by commit time, so there is no intermediate location and no post-merge move; (3) merges the PR; (4) finishes with a clean tree (`git status` empty, `origin` synced). If something failed to push, report the exact error — don't consider the task done.
 
