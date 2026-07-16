@@ -23,7 +23,7 @@ import {
   listKpiLinksForKpi,
 } from '../api'
 import type { GoalKpiRead, GoalRead, KpiFactorRead, KpiLinkCycleRead, KpiLinkRead, KpiLinkType } from '../types'
-import { definitenessLabel, kpiValue, ownerOrDash } from './goalFormat'
+import { definitenessLabel, kpiValue, unitNameOrDash } from './goalFormat'
 
 const LINK_TYPE_LABEL: Record<KpiLinkType, string> = {
   contributes: 'способствует',
@@ -479,12 +479,12 @@ export function GoalCanvas({
     for (const kid of c.member_kpi_ids) if (cycleKpiState.get(kid) !== 'risk') cycleKpiState.set(kid, tone)
   }
 
-  /* чек постановки (Management_Model §3): владелец / измеримость / связи вверх */
-  const hasOwner = goal.owner.trim() !== ''
+  /* чек постановки (Management_Model §3): юнит / измеримость / связи вверх */
+  const hasUnit = goal.unit_id != null
   const measurable = ownKpis.length > 0 && ownKpis.every((k) => k.target != null || k.computed_value != null)
   const hasUpwardLink = data.links.some((l) => ownIdSet.has(l.source_kpi_id) && !ownIdSet.has(l.target_kpi_id))
   const checks: { tone: 'ok' | 'wr' | 'er'; text: string }[] = [
-    { tone: hasOwner ? 'ok' : 'er', text: hasOwner ? `Владелец назначен: ${goal.owner}` : 'Владелец не назначен' },
+    { tone: hasUnit ? 'ok' : 'er', text: hasUnit ? `Юнит назначен: ${goal.unit_name}` : 'Юнит не назначен' },
     {
       tone: ownKpis.length === 0 ? 'er' : measurable ? 'ok' : 'wr',
       text: ownKpis.length === 0 ? 'KPI не заданы' : measurable ? 'Все KPI измеримы' : 'Не все KPI измеримы',
@@ -518,10 +518,10 @@ export function GoalCanvas({
           <aside className="side">
             <div className="panel">
               <div className="ph">
-                <span className="t">ВЛАДЕЛЕЦ ЦЕЛИ</span>
+                <span className="t">ЮНИТ ЦЕЛИ</span>
               </div>
               <div className="s" style={{ fontSize: 13 }}>
-                {ownerOrDash(goal.owner)}
+                {unitNameOrDash(goal.unit_name)}
               </div>
               <div className="s" style={{ fontSize: 11, color: 'var(--i40)' }}>
                 {goal.role_label}
@@ -664,7 +664,7 @@ export function GoalCanvas({
 
               <div className="gc-center" style={{ left: CX, top: CY }}>
                 <div className="nm">{goal.name}</div>
-                <div className="sb">отв. {ownerOrDash(goal.owner)}</div>
+                <div className="sb">отв. {unitNameOrDash(goal.unit_name)}</div>
                 <span className={`bdg ${goal.definiteness === 'fog' ? 'b-sec' : 'b-act'}`}>
                   {goal.definiteness === 'fog' ? 'ТУМАН' : 'ОПРЕДЕЛЕНА'}
                 </span>
@@ -701,7 +701,7 @@ export function GoalCanvas({
                   >
                     <span className="nm">{c.name}</span>
                     <span className="sb">
-                      {ownerOrDash(c.owner)} · {definitenessLabel(c)}
+                      {unitNameOrDash(c.unit_name)} · {definitenessLabel(c)}
                     </span>
                   </button>
                 )

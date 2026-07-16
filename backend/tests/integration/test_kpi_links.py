@@ -6,7 +6,6 @@ async def _create_kpi(client: AsyncClient, kpi_name: str = "Revenue", target: fl
         "/api/v1/goals",
         json={
             "name": f"Goal for {kpi_name}",
-            "owner": "alice@example.com",
             "kpis": [{"name": kpi_name, "target": target, "unit": "USD"}],
         },
     )
@@ -170,7 +169,6 @@ async def test_link_dies_when_kpi_source_deleted_via_goal_patch(client: AsyncCli
         "/api/v1/goals",
         json={
             "name": "Goal",
-            "owner": "alice@example.com",
             "kpis": [{"name": "Source", "target": 100, "unit": "USD"}],
         },
     )
@@ -197,7 +195,6 @@ async def test_link_dies_when_goal_deleted_with_cascade(client: AsyncClient) -> 
         "/api/v1/goals",
         json={
             "name": "Goal",
-            "owner": "alice@example.com",
             "kpis": [{"name": "Source", "target": 100, "unit": "USD"}],
         },
     )

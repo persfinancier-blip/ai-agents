@@ -82,6 +82,20 @@
   - Владелец мёржит PR (пасс намеренно не мёржится агентом — меняет процесс).
   - Завести тестовый issue с меткой `ai-task`, чтобы прогнать цикл вживую.
 
+## 2026-07-16 · feat/unit-entity-backend · не закоммичено (промпт №41)
+
+- **Что сделано:**
+  - `app/models/unit.py` — Unit как Entity-подтип (паттерн Goal/Kpi), `UnitKind ∈ {employee, agent, external, device}`; `goal.unit_id` — новая nullable FK-колонка → `unit.entity_id`, индексирована.
+  - Схемы `app/schemas/unit.py` (`UnitCreate`/`UnitRead`/`UnitUpdate`); Goal API: `owner` убран из `GoalCreate`/`GoalPatch`/`GoalRead`, добавлены `unit_id` + денормализованный `unit_name`; `compute_definiteness` теперь читает `unit_id` вместо текста `entity.owner`; неизвестный `unit_id` на create/patch → 404.
+  - `app/services/unit_service.py` (CRUD) + `app/api/v1/units.py` (`/api/v1/units`, RU-ошибки); delete нулит `unit_id` на ссылающихся целях (без БД-каскадов, по паттерну проекта) вместо их удаления.
+  - Alembic-миграция `0f9898942202` — таблица `unit`, `goal.unit_id` (batch-mode для SQLite FK), плюс одноразовая миграция данных ADR-0006 §6: на сидированной dev-БД создала 4 юнита (`kind=employee`) из различных непустых `entity.owner` целей и проставила `unit_id`; upgrade/downgrade/upgrade проверен вручную.
+  - Тесты: `test_unit_service.py` (unit) + `test_units.py` (integration) — CRUD, delete-нулит-goals; `test_goal_service.py`/`test_goals.py` переведены на `unit_id`, добавлены кейсы неизвестного юнита; все тесты KPI-links/factors/cycles, ссылавшиеся на `owner`, приведены к новой схеме. Сид `scripts/seed_demo_goals.py` создаёт демо-юниты и передаёт `unit_id`.
+  - Фронтенд (минимально, без UI юнитов): `types.ts`/`api.ts` под новую Goal-схему; попап карточки — строка «отв. …» стала read-only отображением `unit_name` (инлайн-редактирование владельца убрано); `GoalCanvas.tsx`/`CommandPanel.tsx`/`goalFormat.ts` — та же замена везде, где рендерился `owner`. Demo-путь (`data.ts`, `GoalCard.tsx`) не тронут.
+  - `.claude/commands/devlog.md` — фикс правила вставки (только после intro-абзаца, без изменения существующих строк) + правило финализации заголовка после мержа (отдельный `chore:`-коммит).
+- **Дальше:**
+  - UI-милестон юнитов (список, назначение владельца из попапа на реальном `unit_id`) — см. BACKLOG.md, backend для него уже готов.
+  - ADR + слайс группировки юнитов (team/dept), увязка юнита как ресурса — остаются открытыми вопросами ADR-0006.
+
 ## 2026-07-16 · docs/unit-entity-canon · не закоммичено (промпт №40)
 
 - **Что сделано:**

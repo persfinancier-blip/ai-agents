@@ -6,19 +6,24 @@ async def _create_kpi(client: AsyncClient, name: str, target: float | None) -> s
         "/api/v1/goals",
         json={
             "name": f"Goal for {name}",
-            "owner": "alice@example.com",
             "kpis": [{"name": name, "target": target, "unit": "pt"}],
         },
     )
     return resp.json()["kpis"][0]["id"]
 
 
+async def _create_unit_id(client: AsyncClient) -> str:
+    resp = await client.post("/api/v1/units", json={"name": "Alice", "kind": "employee"})
+    return resp.json()["entity_id"]
+
+
 async def test_composite_kpi_computed_value_and_definiteness(client: AsyncClient) -> None:
+    unit_id = await _create_unit_id(client)
     goal = await client.post(
         "/api/v1/goals",
         json={
             "name": "Goodwill goal",
-            "owner": "alice@example.com",
+            "unit_id": unit_id,
             "kpis": [
                 {"name": "Reviews", "target": 4.0, "unit": "stars"},
                 {"name": "LTV", "target": 100.0, "unit": "USD"},
@@ -38,7 +43,7 @@ async def test_composite_kpi_computed_value_and_definiteness(client: AsyncClient
         "/api/v1/goals",
         json={
             "name": "Lonely composite",
-            "owner": "alice@example.com",
+            "unit_id": unit_id,
             "kpis": [{"name": "Solo", "target": None, "unit": ""}],
         },
     )
@@ -158,7 +163,6 @@ async def test_deleting_factor_kpi_via_diff_sync_removes_factor_row(client: Asyn
         "/api/v1/goals",
         json={
             "name": "Goal",
-            "owner": "alice@example.com",
             "kpis": [
                 {"name": "FactorOne", "target": 10.0, "unit": "pt"},
                 {"name": "FactorTwo", "target": 20.0, "unit": "pt"},
@@ -199,7 +203,6 @@ async def test_deleting_composite_kpi_removes_its_factor_rows(client: AsyncClien
         "/api/v1/goals",
         json={
             "name": "Goal",
-            "owner": "alice@example.com",
             "kpis": [{"name": "Composite", "target": None, "unit": ""}],
         },
     )

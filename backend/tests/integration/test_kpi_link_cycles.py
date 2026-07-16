@@ -4,7 +4,6 @@ from httpx import AsyncClient
 async def _create_goal_with_kpi(client: AsyncClient, name: str, parent_id: str | None = None) -> tuple[str, str]:
     payload = {
         "name": f"Goal for {name}",
-        "owner": "alice@example.com",
         "kpis": [{"name": name, "target": 100, "unit": "USD"}],
     }
     if parent_id is not None:

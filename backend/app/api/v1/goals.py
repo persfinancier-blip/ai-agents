@@ -4,7 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
 from app.schemas.goal import GoalCreate, GoalPatch, GoalRead
 from app.services import goal_service, kpi_service
-from app.services.goal_service import GoalCycleError, GoalKpiNotFoundError, GoalParentNotFoundError
+from app.services.goal_service import (
+    GoalCycleError,
+    GoalKpiNotFoundError,
+    GoalParentNotFoundError,
+    GoalUnitNotFoundError,
+)
 
 router = APIRouter(prefix="/goals", tags=["goals"])
 
@@ -23,6 +28,8 @@ async def create_goal(payload: GoalCreate, session: AsyncSession = Depends(get_s
         entity, goal, kpi_rows = await goal_service.create_goal(session, payload)
     except GoalParentNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except GoalUnitNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Юнит не найден") from exc
     return await goal_service.to_goal_read(session, entity, goal, kpi_rows)
 
 
@@ -60,6 +67,8 @@ async def patch_goal(goal_id: str, payload: GoalPatch, session: AsyncSession = D
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except GoalCycleError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except GoalUnitNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Юнит не найден") from exc
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found")
     entity, goal, kpi_rows = result

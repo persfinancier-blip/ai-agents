@@ -160,7 +160,7 @@ const goalTone = (g: GoalRead): string => {
 const kpiLabel = (g: GoalRead): string =>
   g.definiteness === 'fog' ? 'туман' : `${g.kpis.length} KPI`
 
-const ownerLabel = (g: GoalRead): string => `отв. ${g.owner.trim() === '' ? '—' : g.owner}`
+const ownerLabel = (g: GoalRead): string => `отв. ${g.unit_name ?? '—'}`
 
 const countGoals = (nodes: GoalNode[]): number =>
   nodes.reduce((acc, n) => acc + 1 + countGoals(n.children), 0)
@@ -664,7 +664,7 @@ function RealGoalMap({
                 <div key={child.goal.id} className="srow">
                   <span className="n">{i + 1}</span>
                   {child.goal.name}
-                  <span className="who">{child.goal.owner.trim() === '' ? '—' : child.goal.owner}</span>
+                  <span className="who">{child.goal.unit_name ?? '—'}</span>
                   <span className="st">{child.goal.definiteness === 'fog' ? 'туман' : 'определена'}</span>
                 </div>
               ))}

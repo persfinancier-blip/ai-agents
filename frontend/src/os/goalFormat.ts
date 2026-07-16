@@ -14,7 +14,7 @@ const LIFECYCLE_LABEL_RU: Record<string, string> = {
 
 export const lifecycleLabel = (stage: string): string => (LIFECYCLE_LABEL_RU[stage] ?? stage).toUpperCase()
 
-export const ownerOrDash = (owner: string): string => (owner.trim() === '' ? '—' : owner)
+export const unitNameOrDash = (unitName: string | null): string => unitName ?? '—'
 
 export const definitenessLabel = (g: GoalRead): string => (g.definiteness === 'fog' ? 'туман' : 'определена')
 

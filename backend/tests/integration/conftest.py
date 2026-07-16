@@ -20,6 +20,7 @@ from app.models import (  # noqa: F401
     kpi_link_cycle,
     scenario,
     status_log,
+    unit,
 )
 from tests.fakes import DEFAULT_CFO_RESPONSE, FakeLLMProvider
 

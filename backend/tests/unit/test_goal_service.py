@@ -15,52 +15,60 @@ from app.models import (  # noqa: F401
     kpi_link_cycle,
     scenario,
     status_log,
+    unit,
 )
 from app.models.entity import Entity
 from app.models.goal import Goal
 from app.models.kpi import Kpi
+from app.models.unit import UnitKind
 from app.schemas.goal import GoalCreate, GoalKpi, GoalPatch
-from app.services import goal_service
-from app.services.goal_service import GoalKpiNotFoundError
+from app.schemas.unit import UnitCreate
+from app.services import goal_service, unit_service
+from app.services.goal_service import GoalKpiNotFoundError, GoalUnitNotFoundError
 
 
-def test_compute_definiteness_no_kpis_is_fog() -> None:
-    assert goal_service.compute_definiteness("alice@example.com", []) == "fog"
-
-
-def test_compute_definiteness_kpi_not_measurable_is_fog() -> None:
-    assert goal_service.compute_definiteness("alice@example.com", [False]) == "fog"
-
-
-def test_compute_definiteness_no_owner_is_fog() -> None:
-    assert goal_service.compute_definiteness("", [True]) == "fog"
-    assert goal_service.compute_definiteness("   ", [True]) == "fog"
-
-
-def test_compute_definiteness_owner_and_measurable_kpi_is_defined() -> None:
-    assert goal_service.compute_definiteness("alice@example.com", [True]) == "defined"
-
-
-async def test_create_and_patch_goal() -> None:
-    engine = create_async_engine(
+def _make_engine():
+    return create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+
+
+def test_compute_definiteness_no_kpis_is_fog() -> None:
+    assert goal_service.compute_definiteness("unit-1", []) == "fog"
+
+
+def test_compute_definiteness_kpi_not_measurable_is_fog() -> None:
+    assert goal_service.compute_definiteness("unit-1", [False]) == "fog"
+
+
+def test_compute_definiteness_no_unit_is_fog() -> None:
+    assert goal_service.compute_definiteness(None, [True]) == "fog"
+
+
+def test_compute_definiteness_unit_and_measurable_kpi_is_defined() -> None:
+    assert goal_service.compute_definiteness("unit-1", [True]) == "defined"
+
+
+async def test_create_and_patch_goal() -> None:
+    engine = _make_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async with session_factory() as session:
+        unit_entity, _unit = await unit_service.create_unit(session, UnitCreate(name="Alice", kind=UnitKind.EMPLOYEE))
         entity_row, goal_row, kpi_rows = await goal_service.create_goal(
             session,
             GoalCreate(
-                name="Test goal", owner="owner@example.com", kpis=[GoalKpi(name="Revenue", target=100, unit="USD")]
+                name="Test goal", unit_id=unit_entity.id, kpis=[GoalKpi(name="Revenue", target=100, unit="USD")]
             ),
         )
         assert entity_row.entity_type == "goal"
         assert goal_row.is_backlog is False
+        assert goal_row.unit_id == unit_entity.id
         assert len(kpi_rows) == 1
         kpi_entity, kpi_row = kpi_rows[0]
         assert kpi_entity.entity_type == "kpi"
@@ -77,12 +85,38 @@ async def test_create_and_patch_goal() -> None:
     await engine.dispose()
 
 
+async def test_create_goal_with_unknown_unit_id_raises() -> None:
+    engine = _make_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with session_factory() as session:
+        with pytest.raises(GoalUnitNotFoundError):
+            await goal_service.create_goal(session, GoalCreate(name="Test goal", unit_id="does-not-exist"))
+
+    await engine.dispose()
+
+
+async def test_patch_goal_with_unknown_unit_id_raises() -> None:
+    engine = _make_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with session_factory() as session:
+        entity_row, _, _ = await goal_service.create_goal(session, GoalCreate(name="Test goal"))
+
+        with pytest.raises(GoalUnitNotFoundError):
+            await goal_service.patch_goal(session, entity_row.id, GoalPatch(unit_id="does-not-exist"))
+
+    await engine.dispose()
+
+
 async def test_patch_goal_kpis_replaces_the_set() -> None:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = _make_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -91,9 +125,7 @@ async def test_patch_goal_kpis_replaces_the_set() -> None:
     async with session_factory() as session:
         entity_row, _goal_row, kpi_rows = await goal_service.create_goal(
             session,
-            GoalCreate(
-                name="Test goal", owner="owner@example.com", kpis=[GoalKpi(name="Revenue", target=100, unit="USD")]
-            ),
+            GoalCreate(name="Test goal", kpis=[GoalKpi(name="Revenue", target=100, unit="USD")]),
         )
         assert len(kpi_rows) == 1
 
@@ -115,24 +147,16 @@ async def test_patch_goal_kpis_replaces_the_set() -> None:
 
 
 async def test_would_create_cycle_direct_transitive_and_valid_move() -> None:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = _make_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async with session_factory() as session:
-        root, _, _ = await goal_service.create_goal(session, GoalCreate(name="Root", owner="owner@example.com"))
-        child, _, _ = await goal_service.create_goal(
-            session, GoalCreate(name="Child", owner="owner@example.com", parent_id=root.id)
-        )
-        grandchild, _, _ = await goal_service.create_goal(
-            session, GoalCreate(name="Grandchild", owner="owner@example.com", parent_id=child.id)
-        )
+        root, _, _ = await goal_service.create_goal(session, GoalCreate(name="Root"))
+        child, _, _ = await goal_service.create_goal(session, GoalCreate(name="Child", parent_id=root.id))
+        grandchild, _, _ = await goal_service.create_goal(session, GoalCreate(name="Grandchild", parent_id=child.id))
 
         assert await goal_service.would_create_cycle(session, root.id, root.id) is True  # self-parent
         assert await goal_service.would_create_cycle(session, root.id, grandchild.id) is True  # transitive
@@ -142,11 +166,7 @@ async def test_would_create_cycle_direct_transitive_and_valid_move() -> None:
 
 
 async def test_cascade_delete_removes_subtree_and_kpi_entities() -> None:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = _make_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -155,15 +175,12 @@ async def test_cascade_delete_removes_subtree_and_kpi_entities() -> None:
     async with session_factory() as session:
         parent_entity, _, _ = await goal_service.create_goal(
             session,
-            GoalCreate(
-                name="Parent", owner="owner@example.com", kpis=[GoalKpi(name="Revenue", target=100, unit="USD")]
-            ),
+            GoalCreate(name="Parent", kpis=[GoalKpi(name="Revenue", target=100, unit="USD")]),
         )
         await goal_service.create_goal(
             session,
             GoalCreate(
                 name="Child",
-                owner="owner@example.com",
                 parent_id=parent_entity.id,
                 kpis=[GoalKpi(name="NPS", target=50, unit="score")],
             ),
@@ -183,23 +200,15 @@ async def test_cascade_delete_removes_subtree_and_kpi_entities() -> None:
 
 
 async def test_delete_with_children_blocked_without_cascade() -> None:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = _make_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async with session_factory() as session:
-        parent_entity, _, _ = await goal_service.create_goal(
-            session, GoalCreate(name="Parent", owner="owner@example.com")
-        )
-        await goal_service.create_goal(
-            session, GoalCreate(name="Child", owner="owner@example.com", parent_id=parent_entity.id)
-        )
+        parent_entity, _, _ = await goal_service.create_goal(session, GoalCreate(name="Parent"))
+        await goal_service.create_goal(session, GoalCreate(name="Child", parent_id=parent_entity.id))
 
         assert await goal_service.delete_goal(session, parent_entity.id, cascade=False) == "has_children"
         assert await goal_service.delete_goal(session, "does-not-exist", cascade=False) == "not_found"
@@ -208,11 +217,7 @@ async def test_delete_with_children_blocked_without_cascade() -> None:
 
 
 async def test_sync_kpis_preserves_id_of_unchanged_kpi() -> None:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = _make_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -223,7 +228,6 @@ async def test_sync_kpis_preserves_id_of_unchanged_kpi() -> None:
             session,
             GoalCreate(
                 name="Test goal",
-                owner="owner@example.com",
                 kpis=[
                     GoalKpi(name="Revenue", target=100, unit="USD"),
                     GoalKpi(name="NPS", target=40, unit="score"),
@@ -253,11 +257,7 @@ async def test_sync_kpis_preserves_id_of_unchanged_kpi() -> None:
 
 
 async def test_sync_kpis_add_new_and_delete_omitted_without_orphan_entity() -> None:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = _make_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -268,7 +268,6 @@ async def test_sync_kpis_add_new_and_delete_omitted_without_orphan_entity() -> N
             session,
             GoalCreate(
                 name="Test goal",
-                owner="owner@example.com",
                 kpis=[
                     GoalKpi(name="Revenue", target=100, unit="USD"),
                     GoalKpi(name="NPS", target=40, unit="score"),
@@ -305,20 +304,14 @@ async def test_sync_kpis_add_new_and_delete_omitted_without_orphan_entity() -> N
 
 
 async def test_sync_kpis_unknown_id_raises() -> None:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = _make_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async with session_factory() as session:
-        goal_entity, _, _ = await goal_service.create_goal(
-            session, GoalCreate(name="Test goal", owner="owner@example.com")
-        )
+        goal_entity, _, _ = await goal_service.create_goal(session, GoalCreate(name="Test goal"))
 
         with pytest.raises(GoalKpiNotFoundError):
             await goal_service.patch_goal(

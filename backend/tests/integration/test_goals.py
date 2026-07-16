@@ -4,11 +4,15 @@ from httpx import AsyncClient
 def _payload(**overrides: object) -> dict:
     base: dict = {
         "name": "Enter new market",
-        "owner": "alice@example.com",
         "kpis": [{"name": "Revenue", "target": 1_000_000, "unit": "USD"}],
     }
     base.update(overrides)
     return base
+
+
+async def _create_unit_id(client: AsyncClient, name: str = "Alice") -> str:
+    resp = await client.post("/api/v1/units", json={"name": name, "kind": "employee"})
+    return resp.json()["entity_id"]
 
 
 async def test_create_and_get_goal(client: AsyncClient) -> None:
@@ -31,21 +35,36 @@ async def test_definiteness_fog_without_kpis(client: AsyncClient) -> None:
     assert resp.json()["definiteness"] == "fog"
 
 
-async def test_definiteness_defined_with_kpi_and_owner(client: AsyncClient) -> None:
+async def test_definiteness_defined_with_kpi_and_unit(client: AsyncClient) -> None:
+    unit_id = await _create_unit_id(client)
+    resp = await client.post("/api/v1/goals", json=_payload(unit_id=unit_id))
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["definiteness"] == "defined"
+    assert body["unit_id"] == unit_id
+    assert body["unit_name"] == "Alice"
+
+
+async def test_definiteness_fog_with_kpi_but_no_unit(client: AsyncClient) -> None:
     resp = await client.post("/api/v1/goals", json=_payload())
     assert resp.status_code == 201
-    assert resp.json()["definiteness"] == "defined"
+    body = resp.json()
+    assert body["definiteness"] == "fog"
+    assert body["unit_id"] is None
+    assert body["unit_name"] is None
 
 
-async def test_definiteness_fog_with_kpi_but_no_owner(client: AsyncClient) -> None:
-    resp = await client.post("/api/v1/goals", json=_payload(owner=""))
-    assert resp.status_code == 201
-    assert resp.json()["definiteness"] == "fog"
+async def test_create_goal_with_unknown_unit_id_is_404(client: AsyncClient) -> None:
+    resp = await client.post("/api/v1/goals", json=_payload(unit_id="does-not-exist"))
+    assert resp.status_code == 404
 
 
 async def test_definiteness_fog_with_kpi_but_no_target(client: AsyncClient) -> None:
     """A KPI without a target is a valid fog state (the KPI itself exists, unmeasured)."""
-    resp = await client.post("/api/v1/goals", json=_payload(kpis=[{"name": "Goodwill", "target": None, "unit": ""}]))
+    unit_id = await _create_unit_id(client)
+    resp = await client.post(
+        "/api/v1/goals", json=_payload(unit_id=unit_id, kpis=[{"name": "Goodwill", "target": None, "unit": ""}])
+    )
     assert resp.status_code == 201
     assert resp.json()["definiteness"] == "fog"
 
@@ -66,15 +85,49 @@ async def test_get_missing_goal_returns_404(client: AsyncClient) -> None:
 
 
 async def test_patch_goal_updates_fields(client: AsyncClient) -> None:
-    create = await client.post("/api/v1/goals", json=_payload())
+    unit_id = await _create_unit_id(client)
+    create = await client.post("/api/v1/goals", json=_payload(unit_id=unit_id))
     goal_id = create.json()["id"]
 
     resp = await client.patch(f"/api/v1/goals/{goal_id}", json={"name": "Updated name"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["name"] == "Updated name"
-    assert body["owner"] == _payload()["owner"]  # untouched fields survive
+    assert body["unit_id"] == unit_id  # untouched fields survive
     assert len(body["kpis"]) == 1  # kpis untouched by a patch that doesn't mention them
+
+
+async def test_patch_goal_unit_id(client: AsyncClient) -> None:
+    unit_a = await _create_unit_id(client, "Alice")
+    unit_b = await _create_unit_id(client, "Bob")
+    create = await client.post("/api/v1/goals", json=_payload(unit_id=unit_a))
+    goal_id = create.json()["id"]
+
+    resp = await client.patch(f"/api/v1/goals/{goal_id}", json={"unit_id": unit_b})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["unit_id"] == unit_b
+    assert body["unit_name"] == "Bob"
+
+
+async def test_patch_goal_unit_id_to_unknown_unit_is_404(client: AsyncClient) -> None:
+    create = await client.post("/api/v1/goals", json=_payload())
+    goal_id = create.json()["id"]
+
+    resp = await client.patch(f"/api/v1/goals/{goal_id}", json={"unit_id": "does-not-exist"})
+    assert resp.status_code == 404
+
+
+async def test_patch_goal_unit_id_to_null_clears_it(client: AsyncClient) -> None:
+    unit_id = await _create_unit_id(client)
+    create = await client.post("/api/v1/goals", json=_payload(unit_id=unit_id))
+    goal_id = create.json()["id"]
+
+    resp = await client.patch(f"/api/v1/goals/{goal_id}", json={"unit_id": None})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["unit_id"] is None
+    assert body["definiteness"] == "fog"
 
 
 async def test_patch_goal_kpis_replaces_the_set(client: AsyncClient) -> None:
@@ -193,7 +246,8 @@ async def test_patch_missing_goal_returns_404(client: AsyncClient) -> None:
 
 
 async def test_is_backlog_defaults_false_and_patchable(client: AsyncClient) -> None:
-    create = await client.post("/api/v1/goals", json=_payload())
+    unit_id = await _create_unit_id(client)
+    create = await client.post("/api/v1/goals", json=_payload(unit_id=unit_id))
     body = create.json()
     assert body["is_backlog"] is False
     goal_id = body["id"]
