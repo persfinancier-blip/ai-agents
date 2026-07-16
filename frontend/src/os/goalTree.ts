@@ -11,13 +11,15 @@ export interface GoalNode {
 /**
  * Лес из плоского списка по parent_id. Сироты (parent не в списке) поднимаются
  * в корни; цикл невозможен — бэкенд запрещает (would_create_cycle).
- * Бэклог-цели (is_backlog) на карте не размещаются: это отложенные идеи,
- * визуальный код «бэклога» — открытый вопрос бренд-бука, не решаем здесь.
+ * Паузнутые цели (is_backlog) остаются на карте на своём обычном месте в
+ * иерархии — правило «на карте не размещаются» отменено владельцем (2026-07-16,
+ * промпт №38b): пауза/плей — переключатель активна/неактивна, а не удаление
+ * с карты. Приглушённое отображение и метка паузы — в RealGoalMap.
  */
 export function buildGoalForest(goals: GoalRead[]): GoalNode[] {
   const nodes = new Map<string, GoalNode>()
   for (const g of goals) {
-    if (!g.is_backlog) nodes.set(g.id, { goal: g, children: [] })
+    nodes.set(g.id, { goal: g, children: [] })
   }
   const roots: GoalNode[] = []
   for (const node of nodes.values()) {
