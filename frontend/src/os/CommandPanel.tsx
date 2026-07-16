@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
-import { ApiError, createGoal, listGoals } from '../api'
+import { ApiError, createGoal, listGoals, patchGoal } from '../api'
 import type { GoalRead } from '../types'
 import { AdvisorOrb } from './AdvisorOrb'
 import {
@@ -13,6 +13,8 @@ import {
 } from './data'
 import type { ChatMsg, RailBlock } from './data'
 import { GoalPopup } from './GoalPopup'
+import type { GoalPopupMode } from './GoalPopup'
+import { deleteGoalWithCascadeConfirm } from './goalFormat'
 import { buildGoalForest, layoutForest } from './goalTree'
 import type { GoalNode } from './goalTree'
 
@@ -163,11 +165,87 @@ const ownerLabel = (g: GoalRead): string => `отв. ${g.owner.trim() === '' ? '
 const countGoals = (nodes: GoalNode[]): number =>
   nodes.reduce((acc, n) => acc + 1 + countGoals(n.children), 0)
 
-function RealGoalMap({ forest, onOpenGoal }: { forest: GoalNode[]; onOpenGoal: (id: string) => void }) {
+// Слайс 38: иконка-глиф для рядов hover-контролов узла/ребра — тот же голый
+// stroke-glyph, что в GoalPopup (.gpop-ic), без заливки/подписи (D9).
+function HoverGlyph({ name }: { name: 'plus' | 'pause' | 'play' | 'process' | 'trash' | 'cross' }) {
+  const p = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.6 }
+  switch (name) {
+    case 'plus':
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24">
+          <path d="M12 5 V19 M5 12 H19" {...p} />
+        </svg>
+      )
+    case 'pause':
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24">
+          <rect x="6" y="4" width="4" height="16" fill="currentColor" />
+          <rect x="14" y="4" width="4" height="16" fill="currentColor" />
+        </svg>
+      )
+    case 'play':
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24">
+          <path d="M6 4 L20 12 L6 20 Z" fill="currentColor" />
+        </svg>
+      )
+    case 'process':
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24">
+          <path d="M14 4 L23 9.5 V19 L14 24.5 L5 19 V9.5 Z" {...p} />
+        </svg>
+      )
+    case 'trash':
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24">
+          <path d="M5 7 H19 M9 7 V5 H15 V7 M7 7 L8 20 H16 L17 7" {...p} />
+        </svg>
+      )
+    case 'cross':
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24">
+          <path d="M6 6 L18 18 M18 6 L6 18" {...p} />
+        </svg>
+      )
+  }
+}
+
+interface RealGoalMapProps {
+  forest: GoalNode[]
+  onOpenGoal: (id: string) => void
+  onAddChild: (parentId: string) => void
+  onInsertBetween: (parentId: string, childId: string) => void
+  onToggleBacklog: (goal: GoalRead) => void
+  onDeleteGoal: (goal: GoalRead) => void
+  onUnlink: (childId: string) => void
+}
+
+function RealGoalMap({
+  forest,
+  onOpenGoal,
+  onAddChild,
+  onInsertBetween,
+  onToggleBacklog,
+  onDeleteGoal,
+  onUnlink,
+}: RealGoalMapProps) {
   const pos = layoutForest(forest)
+  const [hoverNode, setHoverNode] = useState<string | null>(null)
+  const [hoverEdge, setHoverEdge] = useState<string | null>(null)
+  const [focusEdge, setFocusEdge] = useState<string | null>(null)
 
   // рёбра структурного дерева parent_id (связи KPI→KPI и циклы — не здесь: ADR-0004)
-  const edges: { key: string; x1: number; y1: number; x2: number; y2: number; fog: boolean; color: string }[] = []
+  const edges: {
+    key: string
+    parentId: string
+    childId: string
+    x1: number
+    y1: number
+    x2: number
+    y2: number
+    fog: boolean
+    color: string
+  }[] = []
   const walk = (node: GoalNode): void => {
     const from = pos.get(node.goal.id)
     for (const child of node.children) {
@@ -176,6 +254,8 @@ function RealGoalMap({ forest, onOpenGoal }: { forest: GoalNode[]; onOpenGoal: (
         const fog = child.goal.definiteness === 'fog'
         edges.push({
           key: `${node.goal.id}-${child.goal.id}`,
+          parentId: node.goal.id,
+          childId: child.goal.id,
           x1: from.x + from.w,
           y1: from.y + 38,
           x2: to.x,
@@ -220,36 +300,158 @@ function RealGoalMap({ forest, onOpenGoal }: { forest: GoalNode[]; onOpenGoal: (
           .map((e) => (
             <circle key={`${e.key}-pp`} cx={(e.x1 + e.x2) / 2} cy={(e.y1 + e.y2) / 2} r="3.5" fill={e.color} className="pulse" />
           ))}
+        {/* невидимая широкая зона наведения — шире видимой линии ребра (мышь
+            только: focus не вешаем — при 2+ рёбрах их <line> внутри одного
+            <svg> оказываются в DOM раньше HTML-обёрток .ehov, и Tab перескакивал
+            бы между линиями, минуя кнопки, см. промпт №38a, п.2) */}
+        {edges.map((e) => (
+          <line
+            key={`${e.key}-hit`}
+            x1={e.x1}
+            y1={e.y1}
+            x2={e.x2}
+            y2={e.y2}
+            stroke="transparent"
+            strokeWidth="16"
+            style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+            onMouseEnter={() => setHoverEdge(e.key)}
+            onMouseLeave={() => setHoverEdge((cur) => (cur === e.key ? null : cur))}
+          />
+        ))}
       </svg>
+
+      {edges.map((e) => {
+        const mx = (e.x1 + e.x2) / 2
+        const my = (e.y1 + e.y2) / 2
+        const active = hoverEdge === e.key || focusEdge === e.key
+        return (
+          // HTML-обёртка на каждое ребро — «горячая точка» получает фокус
+          // Tab'ом (клавиатурный путь к «+ ×», недоступный самой SVG-линии
+          // без риска сломать порядок обхода) и сразу содержит .ehov, поэтому
+          // Tab из hotspot идёт в кнопки ряда, а не перепрыгивает к соседнему ребру.
+          <div
+            key={`${e.key}-wrap`}
+            className="ehov-wrap"
+            style={{ left: mx, top: my }}
+            onMouseEnter={() => setHoverEdge(e.key)}
+            onMouseLeave={() => setHoverEdge((cur) => (cur === e.key ? null : cur))}
+          >
+            <button
+              type="button"
+              className="ehov-hotspot"
+              aria-label="Связь: действия"
+              onFocus={() => setFocusEdge(e.key)}
+              onBlur={(ev) => {
+                if (!ev.currentTarget.parentElement?.contains(ev.relatedTarget as Node | null)) {
+                  setFocusEdge((cur) => (cur === e.key ? null : cur))
+                }
+              }}
+            />
+            {active && (
+              <div className="ehov">
+                <button
+                  type="button"
+                  title="вставить цель между"
+                  aria-label="Вставить цель между узлами"
+                  onClick={() => onInsertBetween(e.parentId, e.childId)}
+                >
+                  <HoverGlyph name="plus" />
+                </button>
+                <button
+                  type="button"
+                  title="удалить связь"
+                  aria-label="Удалить связь между узлами"
+                  onClick={() => onUnlink(e.childId)}
+                >
+                  <HoverGlyph name="cross" />
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
 
       {nodes.map(({ goal: g }) => {
         const p = pos.get(g.id)
         if (!p) return null
         const fog = g.definiteness === 'fog'
         const bs = branchStyle(g.id, fog)
+        const hovered = hoverNode === g.id
         return (
-          <button
+          <div
             key={g.id}
-            className={`gcard${goalTone(g)}${fog ? ' hazy' : ''}`}
+            className="gnode-wrap"
             style={{ left: p.x, top: p.y, width: p.w }}
-            title="Открыть карточку цели"
-            onClick={() => onOpenGoal(g.id)}
+            onMouseEnter={() => setHoverNode(g.id)}
+            onMouseLeave={() => setHoverNode((cur) => (cur === g.id ? null : cur))}
+            onFocus={() => setHoverNode(g.id)}
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHoverNode((cur) => (cur === g.id ? null : cur))
+            }}
           >
-            <span className="row">
-              <span className="ic" style={{ background: bs.bg, borderColor: bs.bd, color: bs.fg }}>
-                <Icon name="hex" color={bs.fg} />
-              </span>
-              <span className="txt">
-                <span className="nm" title={g.name}>
-                  {g.name}
+            <button
+              className={`gcard${goalTone(g)}${fog ? ' hazy' : ''}`}
+              style={{ position: 'static', width: '100%' }}
+              title="Открыть карточку цели"
+              onClick={() => onOpenGoal(g.id)}
+            >
+              <span className="row">
+                <span className="ic" style={{ background: bs.bg, borderColor: bs.bd, color: bs.fg }}>
+                  <Icon name="hex" color={bs.fg} />
                 </span>
-                <span className="sb">
-                  {ownerLabel(g)} · {fog ? 'туман' : 'определена'}
+                <span className="txt">
+                  <span className="nm" title={g.name}>
+                    {g.name}
+                  </span>
+                  <span className="sb">
+                    {ownerLabel(g)} · {fog ? 'туман' : 'определена'}
+                  </span>
                 </span>
+                <span className="kp">{kpiLabel(g)}</span>
               </span>
-              <span className="kp">{kpiLabel(g)}</span>
-            </span>
-          </button>
+            </button>
+
+            {hovered && (
+              <div className="nhov">
+                <button
+                  type="button"
+                  title="добавить подцель"
+                  aria-label={`Добавить подцель к «${g.name}»`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onAddChild(g.id)
+                  }}
+                >
+                  <HoverGlyph name="plus" />
+                </button>
+                <button
+                  type="button"
+                  title={g.is_backlog ? 'вернуть на карту' : 'пауза — в бэклог'}
+                  aria-label={g.is_backlog ? `Вернуть «${g.name}» на карту` : `Поставить «${g.name}» на паузу`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onToggleBacklog(g)
+                  }}
+                >
+                  <HoverGlyph name={g.is_backlog ? 'play' : 'pause'} />
+                </button>
+                <button type="button" title="назначить процесс — скоро" aria-label="Назначить процесс — скоро" disabled>
+                  <HoverGlyph name="process" />
+                </button>
+                <button
+                  type="button"
+                  title="удалить цель"
+                  aria-label={`Удалить «${g.name}»`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteGoal(g)
+                  }}
+                >
+                  <HoverGlyph name="trash" />
+                </button>
+              </div>
+            )}
+          </div>
         )
       })}
 
@@ -426,8 +628,9 @@ export function CommandPanel({
   const [goals, setGoals] = useState<GoalRead[] | null>(null)
   const [goalsError, setGoalsError] = useState(false)
 
-  // попап карточки цели (Ф7a, промпт №35) — рендерится поверх карты, без смены роута
-  const [popupGoalId, setPopupGoalId] = useState<string | null>(null)
+  // попап карточки цели (Ф7a, промпт №35) — рендерится поверх карты, без смены роута.
+  // Слайс 38: тот же попап открывается и в режиме создания (hover-контролы узла/ребра).
+  const [popupMode, setPopupMode] = useState<GoalPopupMode | null>(null)
 
   // Ф3 (промпт №22): черновик-узел двойного клика по полотну — координаты клика
   // живут только тут, до сохранения; поля «позиция узла» в модели нет и не будет
@@ -530,6 +733,33 @@ export function CommandPanel({
       })
   }
 
+  /* ── слайс 38: hover-контролы узла/ребра карты ────────────────────────── */
+
+  const handleToggleBacklog = (goal: GoalRead) => {
+    patchGoal(goal.id, { is_backlog: !goal.is_backlog })
+      .then(() => refreshGoals())
+      .catch(() => {
+        // тост/ошибка не предусмотрены для этого тумблера в этом слайсе —
+        // карта просто останется в прежнем состоянии при отказе
+      })
+  }
+
+  const handleDeleteGoal = (goal: GoalRead) => {
+    void deleteGoalWithCascadeConfirm(goal).then((result) => {
+      if (result === 'error') {
+        window.alert('Не удалось удалить цель')
+        return
+      }
+      if (result !== 'deleted') return
+      refreshGoals()
+      setPopupMode((m) => (m?.kind === 'edit' && m.goalId === goal.id ? null : m))
+    })
+  }
+
+  const handleUnlink = (childId: string) => {
+    void patchGoal(childId, { parent_id: null }).then(() => refreshGoals())
+  }
+
   return (
     <div className="os-panel">
       <header className="top">
@@ -580,7 +810,15 @@ export function CommandPanel({
                   Не удалось загрузить карту целей
                 </div>
               ) : loading ? null : hasRealGoals ? (
-                <RealGoalMap forest={forest} onOpenGoal={setPopupGoalId} />
+                <RealGoalMap
+                  forest={forest}
+                  onOpenGoal={(id) => setPopupMode({ kind: 'edit', goalId: id })}
+                  onAddChild={(parentId) => setPopupMode({ kind: 'create', parentId })}
+                  onInsertBetween={(parentId, childId) => setPopupMode({ kind: 'insert-between', parentId, childId })}
+                  onToggleBacklog={handleToggleBacklog}
+                  onDeleteGoal={handleDeleteGoal}
+                  onUnlink={handleUnlink}
+                />
               ) : (
                 <DemoGoalMap onOpenGoal={onOpenGoal} />
               )}
@@ -709,13 +947,20 @@ export function CommandPanel({
             </div>
           )}
 
-          {popupGoalId && (
+          {popupMode && (
             <GoalPopup
-              goalId={popupGoalId}
-              branch={branchStyle(popupGoalId, false)}
-              onClose={() => setPopupGoalId(null)}
+              mode={popupMode}
+              branch={branchStyle(
+                popupMode.kind === 'edit'
+                  ? popupMode.goalId
+                  : popupMode.kind === 'insert-between'
+                    ? popupMode.childId
+                    : (popupMode.parentId ?? 'root'),
+                false,
+              )}
+              onClose={() => setPopupMode(null)}
               onOpenCanvas={(id) => {
-                setPopupGoalId(null)
+                setPopupMode(null)
                 onOpenCanvas(id)
               }}
               onChanged={refreshGoals}

@@ -8,11 +8,21 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { ApiError, deleteGoal, getGoal, getGoalSubtree, listGoals, patchGoal } from '../api'
+import { ApiError, createGoal, getGoal, listGoals, patchGoal } from '../api'
 import type { GoalKpiRead, GoalPatch, GoalRead } from '../types'
-import { kpiValue, ownerOrDash } from './goalFormat'
+import { deleteGoalWithCascadeConfirm, kpiValue, ownerOrDash } from './goalFormat'
 
 type Status = 'loading' | 'ready' | 'notfound' | 'error'
+
+// Слайс 38: попап создания — та же карточка, пустая, до коммита имени цель не
+// существует в БД. «edit» — обычный режим (goalId уже есть). «create» — «+» на
+// узле (parentId — новый родитель). «insert-between» — «+» на ребре P→C: после
+// имени идут ДВЕ мутации (createGoal под P, затем patchGoal(C, {parent_id: N})) —
+// честная обработка отказа второго шага описана в commitCreate ниже.
+export type GoalPopupMode =
+  | { kind: 'edit'; goalId: string }
+  | { kind: 'create'; parentId: string | null }
+  | { kind: 'insert-between'; parentId: string; childId: string }
 
 interface BranchStyle {
   hex: string
@@ -158,26 +168,47 @@ function ParentPicker({
 }
 
 export function GoalPopup({
-  goalId,
+  mode,
   branch,
   onClose,
   onOpenCanvas,
   onChanged,
 }: {
-  goalId: string
+  mode: GoalPopupMode
   branch: BranchStyle
   onClose: () => void
   onOpenCanvas: (goalId: string) => void
   onChanged: () => void
 }) {
+  // в create/insert-between цель ещё не существует — goalId появляется только
+  // после успешного createGoal, дальше попап ведёт себя как обычный edit
+  const [createdGoalId, setCreatedGoalId] = useState<string | null>(null)
+  const goalId = mode.kind === 'edit' ? mode.goalId : createdGoalId
+
   const [goal, setGoal] = useState<GoalRead | null>(null)
-  const [status, setStatus] = useState<Status>('loading')
+  const [status, setStatus] = useState<Status>(goalId ? 'loading' : 'ready')
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  // попап может размонтироваться посреди createGoal/patchGoal (Esc/backdrop
+  // не блокируют закрытие на время запроса) — гасим setState после unmount.
+  // true выставляется и в самом эффекте (не только при объявлении ref) —
+  // иначе StrictMode (mount → unmount → remount в dev) гасит его навсегда.
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   const [editingField, setEditingField] = useState<'name' | 'description' | 'owner' | null>(null)
   const [fieldDraft, setFieldDraft] = useState('')
   const skipFieldBlur = useRef(false)
+  // create/insert-between: ✕/Escape/backdrop до коммита имени должны закрыть
+  // попап без запроса — этот флаг гасит commitCreate, который иначе успел бы
+  // сработать по blur имени раньше onClose (промпт №38a, п.1)
+  const skipCreateBlur = useRef(false)
 
   const [editingKpiId, setEditingKpiId] = useState<string | null>(null)
   const [kpiDraft, setKpiDraft] = useState<KpiFieldsValue | null>(null)
@@ -187,7 +218,15 @@ export function GoalPopup({
   const [parentOptions, setParentOptions] = useState<GoalRead[] | null>(null)
   const [parentOptionsError, setParentOptionsError] = useState(false)
 
+  // создание: имя ещё не закоммичено — карточка пустая, поле имени в фокусе
+  const [nameDraft, setNameDraft] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [insertNote, setInsertNote] = useState<string | null>(null)
+  const creatingMode = mode.kind !== 'edit' && !goalId
+
   useEffect(() => {
+    if (!goalId) return
     let cancelled = false
     setStatus('loading')
     setGoal(null)
@@ -222,11 +261,12 @@ export function GoalPopup({
         setParentPickerOpen(false)
         return
       }
+      if (creatingMode) skipCreateBlur.current = true
       onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, parentPickerOpen])
+  }, [onClose, parentPickerOpen, creatingMode])
 
   useEffect(() => {
     if (!goal?.parent_id) {
@@ -247,13 +287,17 @@ export function GoalPopup({
   }, [goal?.parent_id])
 
   const reload = async () => {
+    if (!goalId) return
     const fresh = await getGoal(goalId)
     setGoal(fresh)
   }
 
   // единая точка PATCH для всех правок попапа: без оптимизма — ждём ответ,
   // затем перезапрашиваем и цель, и карту (список), чтобы узел не отстал.
+  // goalId уже существует к моменту вызова (правки доступны только status
+  // === 'ready', т.е. после создания в create/insert-between режимах).
   const saveField = async (patch: GoalPatch) => {
+    if (!goalId) return
     setBusy(true)
     setActionError(null)
     try {
@@ -380,6 +424,59 @@ export function GoalPopup({
     void saveField({ kpis: kpisToWrite(goal.kpis).filter((k) => k.id !== kpiId) })
   }
 
+  /* ── создание (Ф38): коммит имени — до этого момента цели нет в БД ───── */
+
+  const commitCreate = () => {
+    if (!creatingMode || creating) return
+    const name = nameDraft.trim()
+    if (!name) {
+      onClose()
+      return
+    }
+    setCreating(true)
+    setCreateError(null)
+    if (mode.kind === 'create') {
+      createGoal({ name, parent_id: mode.parentId })
+        .then((created) => {
+          onChanged()
+          if (mountedRef.current) setCreatedGoalId(created.id)
+        })
+        .catch((err: unknown) => {
+          if (!mountedRef.current) return
+          setCreating(false)
+          setCreateError(err instanceof ApiError ? 'Не удалось создать цель' : 'Нет связи с сервером')
+        })
+    } else if (mode.kind === 'insert-between') {
+      const { parentId, childId } = mode
+      createGoal({ name, parent_id: parentId })
+        .then((created) =>
+          patchGoal(childId, { parent_id: created.id })
+            .then(() => {
+              onChanged()
+              if (mountedRef.current) setCreatedGoalId(created.id)
+            })
+            .catch(() =>
+              // честно: N уже создан под P, но перенос C не удался — не откатываем
+              // и не притворяемся, что вставка завершена (см. промпт №38, п.7)
+              getGoal(childId)
+                .then((c) => c.name)
+                .catch(() => childId)
+                .then((childName) => {
+                  onChanged()
+                  if (!mountedRef.current) return
+                  setInsertNote(`Цель создана, но перенос ветки не удался — привяжите «${childName}» вручную`)
+                  setCreatedGoalId(created.id)
+                }),
+            ),
+        )
+        .catch((err: unknown) => {
+          if (!mountedRef.current) return
+          setCreating(false)
+          setCreateError(err instanceof ApiError ? 'Не удалось создать цель' : 'Нет связи с сервером')
+        })
+    }
+  }
+
   /* ── бэклог (активна/пауза) ───────────────────────────────────────────── */
 
   const setBacklog = (value: boolean) => {
@@ -391,44 +488,28 @@ export function GoalPopup({
 
   const handleDelete = async () => {
     if (!goal || busy) return
-    if (!window.confirm(`Удалить цель «${goal.name}»?`)) return
     setBusy(true)
     setActionError(null)
-    try {
-      await deleteGoal(goal.id, false)
+    const result = await deleteGoalWithCascadeConfirm(goal)
+    if (!mountedRef.current) return
+    if (result === 'deleted') {
       onChanged()
       onClose()
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        let count: number | null = null
-        try {
-          const subtree = await getGoalSubtree(goal.id)
-          count = subtree.length - 1
-        } catch {
-          count = null
-        }
-        const question = count != null ? `Удалить со всеми подцелями (${count})?` : 'Удалить со всеми подцелями?'
-        if (window.confirm(question)) {
-          try {
-            await deleteGoal(goal.id, true)
-            onChanged()
-            onClose()
-            return
-          } catch {
-            setActionError('Не удалось удалить цель')
-          }
-        }
-      } else {
-        setActionError('Не удалось удалить цель')
-      }
-    } finally {
-      setBusy(false)
+      return
     }
+    if (result === 'error') setActionError('Не удалось удалить цель')
+    setBusy(false)
   }
 
   return (
     <div className="ov gpop">
-      <div className="ov-bg" onClick={onClose} />
+      <div
+        className="ov-bg"
+        onMouseDown={() => {
+          if (creatingMode) skipCreateBlur.current = true
+        }}
+        onClick={onClose}
+      />
       <div className="ov-orb">
         <svg width="150" height="150" viewBox="0 0 28 28">
           <path d="M14 2 L25 8.5 V21.5 L14 28 L3 21.5 V8.5 Z" fill="none" stroke={branch.hex} strokeWidth="1.2" />
@@ -441,6 +522,46 @@ export function GoalPopup({
       <div className="gpop-col">
         <div className="gpop-bub gpop-hd" style={{ borderColor: branch.bd }}>
           <span className="cap">КАРТОЧКА ЦЕЛИ</span>
+          {creatingMode && (
+            <span className="gpop-icons">
+              <span className="bdg b-sec">ТУМАН</span>
+              <button className="gpop-ic" title="активна — недоступно до создания" aria-label="активна — недоступно до создания" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <path d="M6 4 L20 12 L6 20 Z" fill="currentColor" />
+                </svg>
+              </button>
+              <button className="gpop-ic" title="пауза — недоступно до создания" aria-label="пауза — недоступно до создания" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <rect x="6" y="4" width="4" height="16" fill="currentColor" />
+                  <rect x="14" y="4" width="4" height="16" fill="currentColor" />
+                </svg>
+              </button>
+              <button className="gpop-ic" title="назначить процесс — скоро" aria-label="Назначить процесс — скоро" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                  <path d="M12 8 V12 L15 14" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              </button>
+              <button className="gpop-ic" title="удалить — недоступно до создания" aria-label="удалить — недоступно до создания" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <path d="M5 7 H19 M9 7 V5 H15 V7 M7 7 L8 20 H16 L17 7" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              </button>
+              <button
+                className="gpop-ic"
+                title="закрыть"
+                aria-label="Закрыть карточку"
+                onMouseDown={() => {
+                  // mousedown бьёт раньше blur имени — иначе commitCreate
+                  // успевает сработать до того, как onClick поставит флаг
+                  skipCreateBlur.current = true
+                }}
+                onClick={onClose}
+              >
+                ✕
+              </button>
+            </span>
+          )}
           {status === 'ready' && goal && (
             <span className="gpop-icons">
               <span className={`bdg ${goal.definiteness === 'fog' ? 'b-sec' : 'b-act'}`}>
@@ -514,7 +635,62 @@ export function GoalPopup({
           )}
         </div>
 
-        {status !== 'ready' && (
+        {creatingMode && (
+          <>
+            <div className="gpop-bub gpop-chars" style={{ borderColor: branch.bd }}>
+              <input
+                className="edit big"
+                aria-label="Название цели"
+                placeholder="название цели…"
+                autoFocus
+                disabled={creating}
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    commitCreate()
+                  } else if (e.key === 'Escape') {
+                    skipCreateBlur.current = true
+                  }
+                }}
+                onBlur={() => {
+                  if (skipCreateBlur.current) {
+                    skipCreateBlur.current = false
+                    return
+                  }
+                  commitCreate()
+                }}
+              />
+              <div className="s gpop-dashed" aria-hidden="true">
+                без описания — нажмите, чтобы добавить
+              </div>
+              <div className="s">
+                отв. <span className="gpop-dashed" aria-hidden="true">—</span>
+              </div>
+              <div className="s gpop-parent-row">родитель: <span className="gpop-dashed" aria-hidden="true">—</span></div>
+            </div>
+
+            <div className="gpop-bub" style={{ borderColor: branch.bd }}>
+              <div className="cap">KPI ЦЕЛИ · 0 ШТ.</div>
+              <div className="rc rc2">
+                <button className="radd" disabled>
+                  + добавить KPI
+                </button>
+              </div>
+            </div>
+
+            {createError && (
+              <div className="gpop-bub" style={{ borderColor: branch.bd, color: 'var(--rk)' }}>
+                {createError}
+              </div>
+            )}
+
+            <div className="gpop-ft">Esc / клик мимо — закрыть · Enter — создать</div>
+          </>
+        )}
+
+        {status !== 'ready' && !creatingMode && (
           <div className="gpop-bub" style={{ borderColor: branch.bd, color: 'var(--i55)' }}>
             {status === 'loading' && 'Загрузка…'}
             {status === 'notfound' && 'Цель не найдена — возможно, её удалили.'}
@@ -715,6 +891,12 @@ export function GoalPopup({
                 ))}
               </div>
             </div>
+
+            {insertNote && (
+              <div className="gpop-bub" style={{ borderColor: branch.bd, color: 'var(--op)' }}>
+                {insertNote}
+              </div>
+            )}
 
             {actionError && (
               <div className="gpop-bub" style={{ borderColor: branch.bd, color: 'var(--rk)' }}>
