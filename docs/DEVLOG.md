@@ -2,6 +2,19 @@
 
 Журнал проходов по репозиторию: дата · ветка/коммит · что сделано · что дальше. Новые записи — сверху. Добавляется командой `/devlog`.
 
+## 2026-07-16 · chore/github-actions-automation · не закоммичено (промпт ops-01)
+
+- **Что сделано:**
+  - `.github/workflows/claude.yml` — воркер-workflow: триггеры `issues[labeled]` (только метка `ai-task`) и `issue_comment`/`pull_request_review_comment` (`@claude` в теле), `claude_code_oauth_token` из секрета `CLAUDE_CODE_OAUTH_TOKEN`, `claude_args: --max-turns 40`, concurrency-guard по номеру issue/PR, `actions/checkout@v4` с `fetch-depth: 0`.
+  - `.claude/rules/github-automation.md` — короткие правила нового флоу (issue с меткой → runner → PR → CI → доработка только через `@claude`, merge только после «принимаем», действуют правила token economy) + конвенция именования `prompt-ops-NN-*` для инфраструктурных промптов.
+  - `COWORK.md` («Working with the `prompts/` folder») — Cowork может заводить задачу как GitHub issue с меткой `ai-task` через GitHub MCP вместо/вместе с файлом промпта; создание issue/комментариев не git-write и разрешено Cowork; ветки/коммиты/merge остаются за Claude Code.
+  - Метка `ai-task` создана в репозитории (`gh label create`, цвет `#5319E7`).
+  - Промпт-файл перемещён в `prompts/_done/prompt-ops-01-github-actions-automation.md`.
+- **Дальше:**
+  - Владелец добавляет секрет `CLAUDE_CODE_OAUTH_TOKEN` в настройках репозитория.
+  - Владелец мёржит PR (пасс намеренно не мёржится агентом — меняет процесс).
+  - Завести тестовый issue с меткой `ai-task`, чтобы прогнать цикл вживую.
+
 ## 2026-07-16 · docs/unit-entity-canon · не закоммичено (промпт №40)
 
 - **Что сделано:**
