@@ -390,9 +390,9 @@ function RealGoalMap({
             }}
           >
             <button
-              className={`gcard${goalTone(g)}${fog ? ' hazy' : ''}`}
+              className={`gcard${goalTone(g)}${fog ? ' hazy' : ''}${g.is_backlog ? ' paused' : ''}`}
               style={{ position: 'static', width: '100%' }}
-              title="Открыть карточку цели"
+              title={g.is_backlog ? 'На паузе' : 'Открыть карточку цели'}
               onClick={() => onOpenGoal(g.id)}
             >
               <span className="row">
@@ -405,6 +405,7 @@ function RealGoalMap({
                   </span>
                   <span className="sb">
                     {ownerLabel(g)} · {fog ? 'туман' : 'определена'}
+                    {g.is_backlog ? ' · ‖ пауза' : ''}
                   </span>
                 </span>
                 <span className="kp">{kpiLabel(g)}</span>
