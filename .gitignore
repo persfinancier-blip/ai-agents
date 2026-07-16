@@ -26,6 +26,10 @@ frontend/.vite/
 # Local archive snapshots (docs.rar, frontend/src.rar) — not versioned
 *.rar
 
+# Local dispatch state (scripts/dispatch-tasks.ps1) — never versioned
+prompts/_dispatched/
+scripts/dispatch.log
+
 # Editors / OS
 .vscode/
 .idea/

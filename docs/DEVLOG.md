@@ -2,6 +2,18 @@
 
 Журнал проходов по репозиторию: дата · ветка/коммит · что сделано · что дальше. Новые записи — сверху. Добавляется командой `/devlog`.
 
+## 2026-07-16 · chore/file-task-dispatch · не закоммичено (промпт ops-02)
+
+- **Что сделано:**
+  - `.github/workflows/claude.yml` — добавлен триггер `push` на ветки `task/**`; исправлен дефект скоупинга промпта (найден при ревью PR #26): раньше один `prompt` уходил на все события, теперь три отдельных job'а (`claude-issue`, `claude-task-push`, `claude-comment`) — comment-события идут без `prompt` (tag-режим action). Добавлены `timeout-minutes: 30` на все job'ы и token-free шаг-«будильник» (`actions/github-script`, без токенов Claude) на `failure() || cancelled()`: issue-путь — комментарий на issue, task-push-путь — новый issue с меткой `worker-failure` и ссылкой на run. Метка `worker-failure` создана в репозитории (не триггерит воркер — проверено по условиям `if`).
+  - `scripts/dispatch-tasks.ps1` — диспетчер: `-Once` (разовый прогон) и режим наблюдателя по умолчанию (`FileSystemWatcher` на `prompts/`, без поллинга, дебаунс 60с). Для каждого нового файла `prompts/prompt-*.md`: временный `git worktree` от `origin/main`, коммит и пуш в `task/<slug>-<timestamp>`, затем перенос файла в `prompts/_dispatched/` (гитигнорится). Найден и исправлен баг PowerShell 5.1: при `$ErrorActionPreference='Stop'` любая строка stderr от `git` (прогресс, «From github.com...») кидает `NativeCommandError` даже при редиректе в `$null` — обёрнуто в `Invoke-Git` с временным `Continue`.
+  - `.gitignore` — добавлены `prompts/_dispatched/` и `scripts/dispatch.log` (локальное состояние диспетчера, не версионируется).
+  - `.claude/rules/github-automation.md`, `COWORK.md` — описан новый путь: файл в `prompts/` → автоматический пуш в `task/*` → воркер; kickoff-строка в чате остаётся как fallback на случай выключенной машины владельца.
+  - Локально протестированы оба режима (`-Once` и watcher): фиктивный `prompt-ops-test-*.md` уходил в `task/*`-ветку за секунды после дебаунса; ветки и файлы после проверки удалены.
+- **Дальше:**
+  - Регистрация задачи в Task Scheduler (`ONLOGON`, автозапуск наблюдателя) — владелец решил пропустить в этом проходе; сделать вручную или отдельным промптом, когда понадобится автозапуск на этой машине.
+  - Живой смоук-тест: реальный `prompts/prompt-*.md` от Cowork → проверить, что PR от воркера действительно открывается по `task/**`-пушу.
+
 ## 2026-07-16 · chore/github-actions-automation · не закоммичено (промпт ops-01)
 
 - **Что сделано:**
