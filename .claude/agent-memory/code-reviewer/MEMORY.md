@@ -2,3 +2,7 @@
 - [Composite KPI mutation guards](feedback_composite-kpi-mutation-guards.md) — check ALL mutation affordances (delete, not just edit) on computed/composite entity rows
 - [Goal-map Ф-series context](project_goal-map-f-series.md) — Ф1-Ф5 are frontend-only slices atop an already-complete Goal/KPI API; "backend untouched" is expected, not a gap
 - [GoalCanvas edge-hit pattern](feedback_goalcanvas-edge-hit-pattern.md) — gc-edge-hit + action chooser + shared busy/error state is the established edge-delete idiom, not novel
+- [Dual-arc position computation](feedback_dual-arc-position-computation.md) — GoalCanvas draft-node subPos/draftSubPos duplication is intentional (F6), not a bug
+- [RU accent rgba hardcode](feedback_ru-accent-rgba-hardcode.md) — rgba(168,85,247,x) purple-accent hardcodes in os.css are pre-existing convention, don't flag
+- [GoalPopup bubble-overlay pattern (D9)](feedback_gpop-bub-overlay-pattern.md) — .gpop-col/.gpop-bub is the codified repo-wide overlay standard (Visual_Reference D9), reuses .omsg styling intentionally
+- [.rpool CSS duplication](feedback_rpool-css-duplication.md) — new pickers tend to copy-paste .os-goal .rpool instead of reusing it; check every new picker/dropdown

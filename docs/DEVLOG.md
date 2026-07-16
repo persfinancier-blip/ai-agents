@@ -2,6 +2,32 @@
 
 Журнал проходов по репозиторию: дата · ветка/коммит · что сделано · что дальше. Новые записи — сверху. Добавляется командой `/devlog`.
 
+## 2026-07-16 · feat/frontend-map-hover-controls · не закоммичено (промпт №38a)
+
+- **Что сделано:**
+  - Промпт №38a: правки по итогам ревью незакоммиченного слайса 38. ✕/backdrop в create-режиме `GoalPopup` теперь честно отменяют без запроса — добавлен `skipCreateBlur`, выставляется по `onMouseDown` (не `onClick`): клик по ✕/backdrop сначала триггерит native `blur` инпута имени, и если флаг ставить в `onClick`, `commitCreate` успевает создать цель раньше, чем ставится флаг.
+  - Клавиатурный доступ к hover-контролам ребра «+ ×»: SVG `<line>` с `tabIndex` не годится при 2+ рёбрах — все `<line>` внутри одного `<svg>` идут в DOM раньше HTML-`.ehov`, и Tab перепрыгивал через все линии, теряя фокус, а не заходил в кнопки ряда. Заменено на HTML-обёртку `.ehov-wrap` на ребро с фокусируемым `.ehov-hotspot` внутри — `.ehov` рендерится рядом с ним же, так что Tab естественно идёт hotspot → «вставить» → «удалить».
+  - `mountedRef`-гвард в `commitCreate`/`handleDelete` от setState после unmount — важно было выставлять `true` не только при объявлении `useRef`, но и в самом эффекте: React StrictMode (mount→unmount→remount в dev) иначе гасил его навсегда после первого holostого размонтирования, и попап зависал в disabled create-виде даже после успешного `createGoal`.
+  - Общий сценарий confirm/cascade-delete вынесен в `deleteGoalWithCascadeConfirm` (`goalFormat.ts`) — использован и `GoalPopup.handleDelete`, и `CommandPanel.handleDeleteGoal` вместо дублирования. `CommandPanel.handleDeleteGoal` больше не проглатывает не-409 ошибки молча — `window.alert`.
+  - Playwright-регресс после фиксов: ✕/backdrop до коммита имени — ноль созданных целей (было падало — ловилось только ручной проверкой, не автотестом); Tab до hotspot ребра и далее в кнопки — `.ehov` не закрывается раньше времени; create→Enter→туман-узел+добавление KPI, insert-between (P→N→C по API), edge-unlink, cascade-delete (confirm×2) — всё поверх исправленного кода. `npm run build`/`npm run lint` зелёные, backend (контроль) 103 passed.
+  - Скриншоты обновлены: `renders/slice38-map-hover-controls.png` (узел), `renders/slice38-map-hover-controls-2.png` (ребро).
+- **Дальше:**
+  - Пункты 6–8 из промпта №38a (SVG-глиф дублирование, hover через React state вместо CSS, мёртвый вариант `{kind:'create', parentId:null}`) — оставлены как есть, см. BACKLOG.
+  - Слайс 39 (drag рёбер) — отдельный промпт, не начат.
+
+## 2026-07-16 · feat/frontend-map-hover-controls · не закоммичено
+
+- **Что сделано:**
+  - Промпт №38 v2 выполнен по Scope: hover-контролы на узле (`RealGoalMap` в `CommandPanel.tsx`) — ряд бесрамочных иконок «+ ‖ ⬡ ×» над узлом при наведении/фокусе, не перехватывающий клик по узлу/двойной клик по полотну (обёртка `.gnode-wrap` вместо расширения самой `<button class="gcard">`).
+  - `GoalPopup.tsx` получил режим создания через новый проп `mode: GoalPopupMode` (`edit` / `create` / `insert-between`) вместо жёсткого `goalId` — пустая карточка до коммита имени (dashed-заглушки описания/владельца/родителя, туман-бейдж, инертные иконки), Enter/blur коммитит `createGoal`, Esc/backdrop до коммита — ноль запросов; после успеха попап бесшовно переключается в обычный edit по новому id.
+  - Узловые действия: «+» открывает создание подцели (`parent_id` = узел), «‖»/«▶» — PATCH `is_backlog` без попапа, «⬡» — inert-заглушка с `title` «скоро» (модели процесса ещё нет), «×» — verbatim delete-флоу карточки (confirm, 409 → cascade confirm).
+  - Hover-зона ребра — невидимая широкая SVG-линия (stroke-width 16) поверх видимого ребра; при наведении — «+ ×» у середины ребра. «+» — insert-between (`createGoal` под P, затем `patchGoal(C, {parent_id: N})`; честная ошибка второго шага — N остаётся под P, сообщение с именем C, без отката и без иллюзии транзакции). «×» — `patchGoal(C, {parent_id: null})` без confirm, ребро исчезает.
+  - Playwright на сидированной БД: node-hover ряд, «+»→Esc до имени (без запросов, счётчик узлов не изменился), «+»→имя+Enter→туман-узел+ребро, добавление KPI в том же попапе; «‖»/«▶» переключают бэклог; «⬡» inert; «×» с confirm и cascade-веткой (проверено оба исхода — dismiss отменяет, accept×2 удаляет каскадом); edge-hover «+ ×»; вставка между P/C — порядок P→N→C подтверждён через API; edge «×» — ребёнок стал корнем; двойной клик по полотну и клик по узлу (карточка) — без регрессий. Скриншоты — `renders/slice38-map-hover-controls.png` (наведение на узел) и `renders/slice38-map-hover-controls-2.png` (наведение на ребро).
+  - `frontend`: `npm run build`/`npm run lint` — зелёные. `backend` (контроль, без изменений): ruff/mypy/pytest (103 passed) — зелёные.
+- **Дальше:**
+  - Слайс 39 — drag рёбер для смены `parent_id` вместо пикера/ловли ребра кликом — отдельный промпт, ещё не начат.
+  - После ADR бизнес-процесса — иконка «⬡» должна отражать активно/неактивно по признаку назначенного процесса (см. BACKLOG.md).
+
 ## 2026-07-16 · feat/frontend-popup-parent · не закоммичено
 
 - **Что сделано:**

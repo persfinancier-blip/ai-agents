@@ -374,6 +374,103 @@
   color: var(--rk);
 }
 
+/* Слайс 38 — hover-контролы узла: обёртка вместо самой .gcard, чтобы кнопки
+   ряда не были потомками <button> узла (вложенный интерактив невалиден) и
+   не перехватывали клик по узлу/двойной клик по полотну. */
+.os-panel .gnode-wrap {
+  position: absolute;
+}
+
+.os-panel .nhov {
+  position: absolute;
+  top: -30px;
+  left: 0;
+  display: flex;
+  gap: 2px;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  border-radius: var(--r-badge);
+  padding: 3px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  z-index: 3;
+}
+
+.os-panel .nhov button {
+  background: none;
+  border: 0;
+  color: var(--i45);
+  padding: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.os-panel .nhov button:hover {
+  color: var(--ink);
+}
+.os-panel .nhov button:disabled {
+  color: var(--i25);
+  cursor: default;
+}
+.os-panel .nhov button:focus-visible {
+  outline: 2px solid var(--gr);
+  outline-offset: 1px;
+}
+
+/* обёртка ребра: позиционируется на середине линии, hotspot внутри неё
+   ловит фокус Tab'ом, .ehov — сам ряд «+ ×» (промпт №38a, п.2) */
+.os-panel .ehov-wrap {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+
+.os-panel .ehov-hotspot {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.os-panel .ehov-hotspot:focus-visible {
+  outline: 2px solid var(--gr);
+  outline-offset: 1px;
+  border-radius: 50%;
+}
+
+.os-panel .ehov {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 2px;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  border-radius: var(--r-badge);
+  padding: 3px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.os-panel .ehov button {
+  background: none;
+  border: 0;
+  color: var(--i45);
+  padding: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.os-panel .ehov button:hover {
+  color: var(--ink);
+}
+.os-panel .ehov button:focus-visible {
+  outline: 2px solid var(--gr);
+  outline-offset: 1px;
+}
+
 /* expanded/выделенная цель — фиолетовая обводка со свечением */
 
 .os-panel .gx {
