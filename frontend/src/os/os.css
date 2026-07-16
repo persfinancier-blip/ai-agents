@@ -242,10 +242,19 @@
   margin: 0 auto;
 }
 
-.os-panel .canvas > svg {
+.os-panel .canvas > svg,
+.os-panel .canvas > .rgm-layer > svg {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+/* Слайс 39: обёртка драга рёбер — тот же прямоугольник, что и .canvas
+   (position: relative для абсолютно спозиционированных узлов/рёбер внутри,
+   как раньше делал сам .canvas), плюс ловит pointermove/up во время драга. */
+.os-panel .canvas > .rgm-layer {
+  position: absolute;
+  inset: 0;
 }
 
 .os-panel .canvas svg .flow {
@@ -480,6 +489,61 @@
 .os-panel .ehov button:focus-visible {
   outline: 2px solid var(--gr);
   outline-offset: 1px;
+}
+
+/* Слайс 39 — драг рёбер: порт исходящих связей на правом крае узла (место,
+   откуда начинается ребро к ребёнку — совпадает с x1/y1 в RealGoalMap). */
+.os-panel .gport {
+  position: absolute;
+  right: -6px;
+  top: 38px;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--i45);
+  background: var(--sf);
+  padding: 0;
+  cursor: grab;
+  z-index: 4;
+  touch-action: none;
+}
+.os-panel .gport:hover {
+  border-color: var(--ink);
+}
+.os-panel .gport:focus-visible {
+  outline: 2px solid var(--gr);
+  outline-offset: 1px;
+}
+
+/* граб-ринг переподключения — родительский конец ребра, позиционируется
+   абсолютным смещением от центра .ehov-wrap (см. style в CommandPanel.tsx) */
+.os-panel .ereconn {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--i45);
+  background: var(--sf);
+  padding: 0;
+  cursor: grab;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  touch-action: none;
+}
+.os-panel .ereconn:hover {
+  border-color: var(--ink);
+}
+.os-panel .ereconn:focus-visible {
+  outline: 2px solid var(--gr);
+  outline-offset: 1px;
+}
+
+/* подсветка узла-таргета во время драга (D6: только состояние наведения,
+   не новый цвет — используем существующий фиолетовый идентификатор выбора) */
+.os-panel .gcard.drop-target {
+  border-color: rgba(168, 85, 247, 0.75);
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.18);
 }
 
 /* expanded/выделенная цель — фиолетовая обводка со свечением */

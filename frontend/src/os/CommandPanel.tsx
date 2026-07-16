@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent } from 'react'
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { ApiError, createGoal, listGoals, patchGoal } from '../api'
 import type { GoalRead } from '../types'
 import { AdvisorOrb } from './AdvisorOrb'
@@ -218,7 +218,20 @@ interface RealGoalMapProps {
   onToggleBacklog: (goal: GoalRead) => void
   onDeleteGoal: (goal: GoalRead) => void
   onUnlink: (childId: string) => void
+  onReparent: (childId: string, parentId: string) => void
 }
+
+// Слайс 39: перетаскивание рёбер (drag-create + reconnect). Единое состояние
+// драга — источник события (порт узла-родителя или «схваченный» родительский
+// конец существующего ребра); движение записывается в px канвы (canvas 1:1 с
+// viewBox SVG, см. os.css .canvas), поэтому конвертация координат не нужна.
+type DragState =
+  | { kind: 'create'; parentId: string; x: number; y: number; overNodeId: string | null }
+  | { kind: 'reconnect'; childId: string; oldParentId: string; x: number; y: number; overNodeId: string | null }
+
+// Порог движения (px) до перевода pointer-down в драг — иначе конфликт с
+// кликом по узлу/ребру (открытие попапа, hover-ряды).
+const DRAG_THRESHOLD = 4
 
 function RealGoalMap({
   forest,
@@ -228,11 +241,15 @@ function RealGoalMap({
   onToggleBacklog,
   onDeleteGoal,
   onUnlink,
+  onReparent,
 }: RealGoalMapProps) {
   const pos = layoutForest(forest)
   const [hoverNode, setHoverNode] = useState<string | null>(null)
   const [hoverEdge, setHoverEdge] = useState<string | null>(null)
   const [focusEdge, setFocusEdge] = useState<string | null>(null)
+  const [drag, setDrag] = useState<DragState | null>(null)
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+  const dragStart = useRef<{ x: number; y: number; pointerId: number; pending: DragState } | null>(null)
 
   // рёбра структурного дерева parent_id (связи KPI→KPI и циклы — не здесь: ADR-0004)
   const edges: {
@@ -278,8 +295,130 @@ function RealGoalMap({
 
   const focus = forest[0]
 
+  // Слайс 39: точка в координатах канвы (px, 1:1 с viewBox SVG) из клиентских
+  // координат события — единая конвертация для всех pointermove/up хендлеров.
+  const toCanvasPoint = (clientX: number, clientY: number): { x: number; y: number } => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return { x: clientX, y: clientY }
+    return { x: clientX - rect.left, y: clientY - rect.top }
+  }
+
+  // Узел под курсором — для подсветки drop-таргета. Проверяем по прямоугольнику
+  // карточки (позиция+ширина из layoutForest, высота узла фиксирована ~ 62px).
+  const nodeAt = (x: number, y: number): string | null => {
+    for (const { goal: g } of nodes) {
+      const p = pos.get(g.id)
+      if (!p) continue
+      if (x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + 62) return g.id
+    }
+    return null
+  }
+
+  const finishDrag = (state: DragState, dropNodeId: string | null) => {
+    setDrag(null)
+    dragStart.current = null
+    if (!dropNodeId) return // пустое полотно/за пределами карты — отмена, ноль запросов
+    if (state.kind === 'create') {
+      if (dropNodeId === state.parentId) return // self-drop — игнор
+      onReparent(dropNodeId, state.parentId)
+    } else {
+      if (dropNodeId === state.childId) return // self-drop — игнор
+      onReparent(state.childId, dropNodeId)
+    }
+  }
+
+  const onDragPointerMove = (e: ReactPointerEvent) => {
+    const { x, y } = toCanvasPoint(e.clientX, e.clientY)
+    if (dragStart.current && !drag) {
+      const dx = e.clientX - dragStart.current.x
+      const dy = e.clientY - dragStart.current.y
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return
+      setDrag(dragStart.current.pending)
+    }
+    setDrag((cur) => (cur ? { ...cur, x, y, overNodeId: nodeAt(x, y) } : cur))
+  }
+
+  const onDragPointerUp = (e: ReactPointerEvent) => {
+    if (!dragStart.current) return
+    const pointerId = dragStart.current.pointerId
+    const target = e.currentTarget as HTMLElement
+    if (target.hasPointerCapture?.(pointerId)) target.releasePointerCapture(pointerId)
+    const state = drag ?? dragStart.current.pending
+    const { x, y } = toCanvasPoint(e.clientX, e.clientY)
+    finishDrag(state, nodeAt(x, y))
+  }
+
+  const cancelDrag = () => {
+    setDrag(null)
+    dragStart.current = null
+  }
+
+  useEffect(() => {
+    if (!drag) return
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') cancelDrag()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag !== null])
+
+  const startPortDrag = (e: ReactPointerEvent, parentId: string) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const target = e.currentTarget as HTMLElement
+    target.setPointerCapture(e.pointerId)
+    const from = pos.get(parentId)
+    const start = from ? { x: from.x + from.w, y: from.y + 38 } : toCanvasPoint(e.clientX, e.clientY)
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      pointerId: e.pointerId,
+      pending: { kind: 'create', parentId, x: start.x, y: start.y, overNodeId: null },
+    }
+  }
+
+  const startReconnectDrag = (e: ReactPointerEvent, childId: string, oldParentId: string) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const target = e.currentTarget as HTMLElement
+    target.setPointerCapture(e.pointerId)
+    const from = pos.get(oldParentId)
+    const start = from ? { x: from.x + from.w, y: from.y + 38 } : toCanvasPoint(e.clientX, e.clientY)
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      pointerId: e.pointerId,
+      pending: { kind: 'reconnect', childId, oldParentId, x: start.x, y: start.y, overNodeId: null },
+    }
+  }
+
+  // Конец превью-линии: пока не начался драг (dragStart есть, drag ещё null,
+  // движения <порога) якорь стоит в точке старта — линия не рендерится (см. ниже).
+  const previewEnd = drag
+    ? { x: drag.x, y: drag.y }
+    : null
+  const previewStart =
+    drag?.kind === 'create'
+      ? (() => {
+          const p = pos.get(drag.parentId)
+          return p ? { x: p.x + p.w, y: p.y + 38 } : null
+        })()
+      : drag?.kind === 'reconnect'
+        ? (() => {
+            const child = pos.get(drag.childId)
+            return child ? { x: child.x, y: child.y + 38 } : null
+          })()
+        : null
+
   return (
-    <>
+    <div
+      className="rgm-layer"
+      ref={canvasRef}
+      onPointerMove={onDragPointerMove}
+      onPointerUp={onDragPointerUp}
+      onPointerCancel={cancelDrag}
+    >
       <svg viewBox="0 0 1040 560">
         {edges.map((e) => (
           <line
@@ -300,6 +439,20 @@ function RealGoalMap({
           .map((e) => (
             <circle key={`${e.key}-pp`} cx={(e.x1 + e.x2) / 2} cy={(e.y1 + e.y2) / 2} r="3.5" fill={e.color} className="pulse" />
           ))}
+        {/* драг-превью (слайс 39): D6 — пунктир строго для «будущего/черновика»,
+            тот же стиль, что и рёбра-туман; конец следует за курсором */}
+        {drag && previewStart && previewEnd && (
+          <line
+            x1={previewStart.x}
+            y1={previewStart.y}
+            x2={previewEnd.x}
+            y2={previewEnd.y}
+            stroke="var(--i45)"
+            strokeOpacity=".7"
+            strokeWidth="1.5"
+            strokeDasharray="5 6"
+          />
+        )}
         {/* невидимая широкая зона наведения — шире видимой линии ребра (мышь
             только: focus не вешаем — при 2+ рёбрах их <line> внутри одного
             <svg> оказываются в DOM раньше HTML-обёрток .ehov, и Tab перескакивал
@@ -324,6 +477,7 @@ function RealGoalMap({
         const mx = (e.x1 + e.x2) / 2
         const my = (e.y1 + e.y2) / 2
         const active = hoverEdge === e.key || focusEdge === e.key
+        const reconnecting = drag?.kind === 'reconnect' && drag.childId === e.childId
         return (
           // HTML-обёртка на каждое ребро — «горячая точка» получает фокус
           // Tab'ом (клавиатурный путь к «+ ×», недоступный самой SVG-линии
@@ -347,7 +501,7 @@ function RealGoalMap({
                 }
               }}
             />
-            {active && (
+            {active && !reconnecting && (
               <div className="ehov">
                 <button
                   type="button"
@@ -367,6 +521,20 @@ function RealGoalMap({
                 </button>
               </div>
             )}
+
+            {/* Слайс 39: «схватить» родительский конец ребра — переподключение.
+                Позиционируется абсолютно от узла-родителя (e.x1/e.y1), не от
+                середины ребра (.ehov-wrap центрирован в mx/my transform'ом). */}
+            {(active || reconnecting) && (
+              <button
+                type="button"
+                className="ereconn"
+                style={{ left: e.x1 - mx, top: e.y1 - my }}
+                title="перетянуть начало связи к другому родителю"
+                aria-label="Переподключить связь к другому родителю"
+                onPointerDown={(ev) => startReconnectDrag(ev, e.childId, e.parentId)}
+              />
+            )}
           </div>
         )
       })}
@@ -377,6 +545,7 @@ function RealGoalMap({
         const fog = g.definiteness === 'fog'
         const bs = branchStyle(g.id, fog)
         const hovered = hoverNode === g.id
+        const isDropTarget = drag !== null && drag.overNodeId === g.id
         return (
           <div
             key={g.id}
@@ -390,7 +559,7 @@ function RealGoalMap({
             }}
           >
             <button
-              className={`gcard${goalTone(g)}${fog ? ' hazy' : ''}${g.is_backlog ? ' paused' : ''}`}
+              className={`gcard${goalTone(g)}${fog ? ' hazy' : ''}${g.is_backlog ? ' paused' : ''}${isDropTarget ? ' drop-target' : ''}`}
               style={{ position: 'static', width: '100%' }}
               title={g.is_backlog ? 'На паузе' : 'Открыть карточку цели'}
               onClick={() => onOpenGoal(g.id)}
@@ -412,7 +581,20 @@ function RealGoalMap({
               </span>
             </button>
 
-            {hovered && (
+            {/* Слайс 39: порт исходящих связей — pointer-down начинает драг-создание
+                ребра «этот узел становится родителем» (конвенция владельца:
+                направление драга = направление ребра, от родителя к ребёнку). */}
+            {(hovered || (drag?.kind === 'create' && drag.parentId === g.id)) && (
+              <button
+                type="button"
+                className="gport"
+                title="потянуть связь к другой цели"
+                aria-label={`Создать связь от «${g.name}» к другой цели`}
+                onPointerDown={(e) => startPortDrag(e, g.id)}
+              />
+            )}
+
+            {hovered && !drag && (
               <div className="nhov">
                 <button
                   type="button"
@@ -490,7 +672,7 @@ function RealGoalMap({
           )}
         </div>
       )}
-    </>
+    </div>
   )
 }
 
@@ -761,6 +943,18 @@ export function CommandPanel({
     void patchGoal(childId, { parent_id: null }).then(() => refreshGoals())
   }
 
+  // Слайс 39: drag-create/reconnect — обе ветки одинаковы после старта
+  // (parent_id мутация с honest-отказом при цикле, тем же текстом, что в
+  // GoalPopup.saveField); состояние карты при отказе не меняется — refreshGoals
+  // просто не вызывается, а карточка (если открыта) синхронизацию не потеряет.
+  const handleReparent = (childId: string, parentId: string) => {
+    patchGoal(childId, { parent_id: parentId })
+      .then(() => refreshGoals())
+      .catch((err: unknown) => {
+        window.alert(err instanceof ApiError && err.status === 409 ? 'Нельзя: цикл в дереве' : 'Не удалось сохранить изменения')
+      })
+  }
+
   return (
     <div className="os-panel">
       <header className="top">
@@ -818,6 +1012,7 @@ export function CommandPanel({
                   onInsertBetween={(parentId, childId) => setPopupMode({ kind: 'insert-between', parentId, childId })}
                   onToggleBacklog={handleToggleBacklog}
                   onDeleteGoal={handleDeleteGoal}
+                  onReparent={handleReparent}
                   onUnlink={handleUnlink}
                 />
               ) : (
