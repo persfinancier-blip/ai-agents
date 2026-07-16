@@ -2431,6 +2431,53 @@
   color: var(--ink);
 }
 
+/* строка «родитель» — якорь для пикер-облачка (промпт №37) */
+.gpop-parent-row {
+  position: relative;
+}
+.gpop-parent-picker {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 4;
+  width: 260px;
+  padding: 10px;
+}
+/* без своей рамки/фона у .rpool — картинку уже даёт .gpop-bub-контейнер
+   (иначе рамка-в-рамке, см. .gpop-bub .rc выше); в отличие от .os-goal .rpool,
+   у которого своего .gpop-bub-подобного контейнера нет. */
+.gpop-parent-picker .rpool {
+  max-height: 220px;
+  overflow-y: auto;
+}
+.gpop-parent-picker .rpool > button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+}
+.gpop-parent-picker .rpool > button:last-child {
+  border-bottom: 0;
+}
+.gpop-parent-picker .rpool > button:hover {
+  background: var(--sf2);
+}
+.gpop-parent-picker .rpool b {
+  display: block;
+  font: 500 12px var(--sans);
+  color: var(--ink);
+}
+.gpop-parent-picker .note {
+  padding: 8px 10px;
+  font: 400 11.5px var(--sans);
+  color: var(--i55);
+}
+
 .gpop-stub {
   color: var(--i35);
   cursor: default;

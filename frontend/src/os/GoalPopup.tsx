@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { ApiError, deleteGoal, getGoal, getGoalSubtree, patchGoal } from '../api'
+import { ApiError, deleteGoal, getGoal, getGoalSubtree, listGoals, patchGoal } from '../api'
 import type { GoalKpiRead, GoalPatch, GoalRead } from '../types'
 import { kpiValue, ownerOrDash } from './goalFormat'
 
@@ -113,6 +113,50 @@ const QUADRANTS = [
   { key: 'drop', title: 'неважно · несрочно', label: 'отложить' },
 ] as const
 
+// пикер родителя — облачко D9 (та же порода, что .gpop-bub), список .rpool
+// восстановлен из истории RealGoalCard.tsx (openParentPicker/chooseParent).
+function ParentPicker({
+  options,
+  error,
+  borderColor,
+  onChoose,
+  onClose,
+}: {
+  options: GoalRead[] | null
+  error: boolean
+  borderColor: string
+  onChoose: (parentId: string | null) => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [onClose])
+
+  return (
+    <div className="gpop-bub gpop-parent-picker" style={{ borderColor }} ref={ref}>
+      <div className="rpool">
+        <button onClick={() => onChoose(null)}>
+          <b>сделать корневой</b>
+        </button>
+        {error && <div className="note">Не удалось загрузить список</div>}
+        {!error && options === null && <div className="note">загрузка…</div>}
+        {!error &&
+          options?.map((g) => (
+            <button key={g.id} onClick={() => onChoose(g.id)}>
+              <b>{g.name}</b>
+            </button>
+          ))}
+      </div>
+    </div>
+  )
+}
+
 export function GoalPopup({
   goalId,
   branch,
@@ -138,6 +182,11 @@ export function GoalPopup({
   const [editingKpiId, setEditingKpiId] = useState<string | null>(null)
   const [kpiDraft, setKpiDraft] = useState<KpiFieldsValue | null>(null)
 
+  const [parentName, setParentName] = useState<string | null>(null)
+  const [parentPickerOpen, setParentPickerOpen] = useState(false)
+  const [parentOptions, setParentOptions] = useState<GoalRead[] | null>(null)
+  const [parentOptionsError, setParentOptionsError] = useState(false)
+
   useEffect(() => {
     let cancelled = false
     setStatus('loading')
@@ -146,6 +195,9 @@ export function GoalPopup({
     setEditingKpiId(null)
     setKpiDraft(null)
     setActionError(null)
+    setParentName(null)
+    setParentPickerOpen(false)
+    setParentOptions(null)
 
     getGoal(goalId)
       .then((g) => {
@@ -165,11 +217,34 @@ export function GoalPopup({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      if (parentPickerOpen) {
+        setParentPickerOpen(false)
+        return
+      }
+      onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, parentPickerOpen])
+
+  useEffect(() => {
+    if (!goal?.parent_id) {
+      setParentName(null)
+      return
+    }
+    let cancelled = false
+    getGoal(goal.parent_id)
+      .then((p) => {
+        if (!cancelled) setParentName(p.name)
+      })
+      .catch(() => {
+        if (!cancelled) setParentName(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [goal?.parent_id])
 
   const reload = async () => {
     const fresh = await getGoal(goalId)
@@ -230,6 +305,22 @@ export function GoalPopup({
       return
     }
     commitField()
+  }
+
+  /* ── правка родителя (пикер-облачко D9, список — исключая себя) ─────── */
+
+  const openParentPicker = () => {
+    setParentPickerOpen(true)
+    setParentOptions(null)
+    setParentOptionsError(false)
+    listGoals()
+      .then((all) => setParentOptions(all.filter((g) => g.id !== goalId)))
+      .catch(() => setParentOptionsError(true))
+  }
+  const closeParentPicker = () => setParentPickerOpen(false)
+  const chooseParent = (parentId: string | null) => {
+    setParentPickerOpen(false)
+    void saveField({ parent_id: parentId })
   }
 
   /* ── правка KPI (diff-sync по id — существующие id не терять) ───────── */
@@ -508,6 +599,29 @@ export function GoalPopup({
                   >
                     {ownerOrDash(goal.owner)}
                   </span>
+                )}
+              </div>
+
+              <div className="s gpop-parent-row">
+                родитель:{' '}
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="gpop-dashed"
+                  onClick={() => (parentPickerOpen ? closeParentPicker() : openParentPicker())}
+                  onKeyDown={(e) => e.key === 'Enter' && (parentPickerOpen ? closeParentPicker() : openParentPicker())}
+                  aria-label="Изменить родителя цели"
+                >
+                  {parentName ?? '—'}
+                </span>
+                {parentPickerOpen && (
+                  <ParentPicker
+                    options={parentOptions}
+                    error={parentOptionsError}
+                    borderColor={branch.bd}
+                    onChoose={chooseParent}
+                    onClose={closeParentPicker}
+                  />
                 )}
               </div>
             </div>
