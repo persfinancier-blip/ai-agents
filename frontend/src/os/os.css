@@ -2309,38 +2309,53 @@
   }
 }
 
-/* ═══════════ карточка цели — попап над картой (Ф7a, промпт №35) ═══════════
-   Оверлей переиспользует .ov/.ov-bg/.ov-orb/.ov-name (стиль орба советника);
-   .gpop-card — правая панель, новый макет только для контейнера/шапки/
-   иконок/квадрантов. Общие ряды/бейджи/инпуты — расширение .os-goal-селекторов
-   выше по файлу (без дублирования блоков). */
+/* ═══════════ карточка цели — попап над картой (Ф7a, промпт №35; облачка — фикс-ап промпта №36) ═══
+   Один паттерн оверлея на весь продукт (Visual_Reference.md Part II, D10):
+   переиспользует .ov/.ov-bg/.ov-orb/.ov-name как есть, а секции карточки —
+   не монолитная рамка, а колонка свободных «облачков» (.gpop-bub), той же
+   породы, что .omsg/.topic советника. Рамка облачков — цвет идентичности
+   ветки цели (branch.bd), ровно как советник тонирует свои пузыри своим hue.
+   Общие ряды/бейджи/инпуты — расширение .os-goal-селекторов выше по файлу
+   (без дублирования блоков). */
 
 .gpop .ov-name {
   border-width: 1px;
   border-style: solid;
 }
 
-.gpop-card {
+.gpop-col {
   position: absolute;
   right: 5%;
   top: 6%;
   bottom: 6%;
   left: calc(4% + 300px);
   max-width: 640px;
-  background: var(--sf);
-  border: 1px solid var(--ln);
-  border-radius: var(--r-card);
-  padding: 18px 22px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 9px;
   overflow-y: auto;
+}
+
+.gpop-bub {
+  background: rgba(24, 22, 34, 0.72);
+  border: 1px solid var(--ln);
+  border-radius: 16px;
+  padding: 14px 18px;
+  flex-shrink: 0;
+}
+
+/* KPI-список — нейтральная внутренняя строка внутри облачка, не отдельная рамка */
+.gpop-bub .rc {
+  background: none;
+  border: 0;
+  padding: 0;
 }
 
 .gpop-hd {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 10px 18px;
 }
 
 .gpop-icons {
@@ -2389,12 +2404,6 @@
   background: rgba(232, 84, 74, 0.1);
   border-color: rgba(232, 84, 74, 0.4);
   color: var(--rk);
-}
-
-.gpop-body {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
 }
 
 .gpop-chars {
@@ -2450,7 +2459,8 @@
 }
 
 .gpop-ft {
-  margin-top: auto;
+  flex-shrink: 0;
+  padding: 0 6px;
   font: 500 10.5px var(--mono);
   color: var(--i35);
   text-align: right;
