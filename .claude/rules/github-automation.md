@@ -16,10 +16,23 @@
 
 ## File-driven dispatch (prompt file → `task/*` branch → worker)
 
-- `scripts/dispatch-tasks.ps1` watches `prompts/` on the owner's machine
-  (event-driven `FileSystemWatcher`, no polling) and ships any new
-  `prompts/prompt-*.md` file to GitHub as its own `task/<slug>-<timestamp>`
-  branch, which the `push` trigger in `claude.yml` picks up.
+- The **installed copy** at `%LOCALAPPDATA%\ai-agents-ops\dispatch-tasks.ps1`
+  is what actually runs (via Task Scheduler) — not `scripts/dispatch-tasks.ps1`
+  in the repo. The repo copy lives outside the working tree because the
+  checkout is shared across branches: if the owner's parallel session has an
+  older branch checked out (predating this script), an in-repo path would
+  vanish and the watcher would silently fail at logon. The script takes a
+  `-RepoRoot <path>` parameter (defaults to its own parent dir for in-repo
+  use); the installed copy is invoked with `-RepoRoot C:\Dev\ai-agents` so it
+  always watches the real checkout regardless of which branch is on disk. Its
+  log (`dispatch.log`) lives next to the installed copy, not in the repo.
+- **Update rule:** any change to `scripts/dispatch-tasks.ps1` must end with
+  re-copying it to `%LOCALAPPDATA%\ai-agents-ops\dispatch-tasks.ps1` — the
+  installed copy does not auto-update from the repo.
+- It watches `prompts/` on the owner's machine (event-driven
+  `FileSystemWatcher`, no polling) and ships any new `prompts/prompt-*.md`
+  file to GitHub as its own `task/<slug>-<timestamp>` branch, which the
+  `push` trigger in `claude.yml` picks up.
 - One file = one branch = one PR. The dispatched file is moved locally to
   `prompts/_dispatched/` (gitignored, local-only) so it's never sent twice.
 - Registered as a Windows Task Scheduler job (`ai-agents-task-dispatch`,

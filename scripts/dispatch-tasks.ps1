@@ -8,17 +8,27 @@
     Run a single sweep and exit (manual runs / tests). Default is watcher mode:
     a FileSystemWatcher on prompts/ that triggers a sweep on new/renamed files,
     with a debounce so Cowork finishes writing before dispatch.
+.PARAMETER RepoRoot
+    Path to the ai-agents checkout to watch. Defaults to the parent of this
+    script's own location (in-repo usage, unchanged). Pass this when running
+    from an installed copy outside the repo (see
+    .claude/rules/github-automation.md), so the watcher keeps working even
+    when the checkout is on a branch that predates scripts/dispatch-tasks.ps1.
 #>
 param(
-    [switch]$Once
+    [switch]$Once,
+    [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot)
 )
 
 $ErrorActionPreference = 'Stop'
 
-$RepoRoot = Split-Path -Parent $PSScriptRoot
+# The log always lives next to THIS script (the installed copy, when run
+# standalone), not inside $RepoRoot — $RepoRoot may point at a checkout on a
+# branch without scripts/, so a repo-relative log path would break there.
+$InstallDir = $PSScriptRoot
 $PromptsDir = Join-Path $RepoRoot 'prompts'
 $DispatchedDir = Join-Path $PromptsDir '_dispatched'
-$LogFile = Join-Path $RepoRoot 'scripts\dispatch.log'
+$LogFile = Join-Path $InstallDir 'dispatch.log'
 $DebounceSeconds = 60
 
 function Write-DispatchLog {
