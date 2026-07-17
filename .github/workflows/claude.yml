@@ -53,6 +53,10 @@ jobs:
             });
 
   claude-task-push:
+    # anthropics/claude-code-action@v1 does not support the `push` event
+    # ("Unsupported event type: push") — found during ops-03 testing. This
+    # job runs the Claude Code CLI directly instead of going through the
+    # action, since the action's event-type gate can't be bypassed for push.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/task/')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -70,18 +74,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--max-turns 40"
-          prompt: |
-            This branch was created by the task dispatcher: its latest commit adds
-            exactly one task prompt file under prompts/ (not in _done). Find it via
-            `git log -1 --name-only`, read it, and execute it following CLAUDE.md and
-            .claude/rules/. Use THIS branch as the working branch (rename is not
-            needed). Satisfy the DoD for the touched zone. Move the prompt file to
-            prompts/_done/ in the same work. Open a PR to main titled per the prompt,
-            and leave it open for owner review.
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run Claude Code on the dispatched task
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          claude -p "This branch was created by the task dispatcher: its latest commit adds
+          exactly one task prompt file under prompts/ (not in _done). Find it via
+          \`git log -1 --name-only\`, read it, and execute it following CLAUDE.md and
+          .claude/rules/. Use THIS branch as the working branch (rename is not
+          needed). Satisfy the DoD for the touched zone. Move the prompt file to
+          prompts/_done/ in the same work. Open a PR to main titled per the prompt,
+          and leave it open for owner review. Use gh (already authenticated via
+          GH_TOKEN) to open the PR." \
+          --max-turns 40 \
+          --allowedTools "Bash,Read,Write,Edit,Glob,Grep"
 
       - name: Dead-run alarm (task push path)
         if: failure() || cancelled()
