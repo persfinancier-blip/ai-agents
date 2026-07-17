@@ -20,6 +20,7 @@ from app.models import (  # noqa: F401
     scenario,
     status_log,
     unit,
+    unit_group,
 )
 
 config = context.config

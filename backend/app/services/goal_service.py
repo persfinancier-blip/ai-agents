@@ -8,7 +8,7 @@ from app.models.entity import Entity
 from app.models.goal import Goal, GoalLifecycleStage
 from app.models.kpi import Kpi
 from app.schemas.goal import GoalCreate, GoalKpi, GoalPatch, GoalRead
-from app.services import kpi_factor_service, kpi_service, unit_service
+from app.services import kpi_factor_service, kpi_service, unit_group_service, unit_service
 
 KpiRow = tuple[Entity, Kpi]
 GoalRow = tuple[Entity, Goal]
@@ -27,11 +27,34 @@ class GoalKpiNotFoundError(Exception):
 
 
 class GoalUnitNotFoundError(Exception):
-    """Raised when create/patch references a unit_id that isn't an existing unit."""
+    """Raised when create/patch references a unit_id that isn't an existing unit or group."""
+
+
+class GoalOwnerInvalidError(Exception):
+    """Raised when unit_id references an existing entity that is neither a Unit nor a UnitGroup (ADR-0007)."""
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+async def _validate_owner(session: AsyncSession, unit_id: str | None) -> None:
+    """A goal's owner is any workforce Entity — atomic unit OR group (ADR-0007 §3).
+
+    Nonexistent id -> 404 (GoalUnitNotFoundError); existing but wrong entity type -> 422
+    (GoalOwnerInvalidError).
+    """
+    if unit_id is None:
+        return
+    if await unit_service.get_unit(session, unit_id) is not None:
+        return
+    if await unit_group_service.get_unit_group(session, unit_id) is not None:
+        return
+
+    entity_result = await session.execute(select(Entity).where(Entity.id == unit_id))
+    if entity_result.scalars().one_or_none() is None:
+        raise GoalUnitNotFoundError(f"Unit or group {unit_id} does not exist")
+    raise GoalOwnerInvalidError(f"Entity {unit_id} is not a Unit or UnitGroup")
 
 
 def compute_definiteness(unit_id: str | None, kpi_measurable: list[bool]) -> str:
@@ -65,7 +88,11 @@ async def to_goal_read(session: AsyncSession, entity: Entity, goal: Goal, kpi_ro
     unit_name = None
     if goal.unit_id is not None:
         unit_row = await unit_service.get_unit(session, goal.unit_id)
-        unit_name = unit_row[0].name if unit_row is not None else None
+        if unit_row is not None:
+            unit_name = unit_row[0].name
+        else:
+            group_row = await unit_group_service.get_unit_group(session, goal.unit_id)
+            unit_name = group_row[0].name if group_row is not None else None
 
     return GoalRead(
         id=entity.id,
@@ -90,8 +117,7 @@ async def to_goal_read(session: AsyncSession, entity: Entity, goal: Goal, kpi_ro
 async def create_goal(session: AsyncSession, payload: GoalCreate) -> tuple[Entity, Goal, list[KpiRow]]:
     if payload.parent_id is not None and await _get_row(session, payload.parent_id) is None:
         raise GoalParentNotFoundError(f"Parent goal {payload.parent_id} does not exist")
-    if payload.unit_id is not None and await unit_service.get_unit(session, payload.unit_id) is None:
-        raise GoalUnitNotFoundError(f"Unit {payload.unit_id} does not exist")
+    await _validate_owner(session, payload.unit_id)
 
     entity = Entity(
         entity_type="goal",
@@ -250,8 +276,7 @@ async def patch_goal(
 
     if "unit_id" in updates:
         new_unit_id = updates["unit_id"]
-        if new_unit_id is not None and await unit_service.get_unit(session, new_unit_id) is None:
-            raise GoalUnitNotFoundError(f"Unit {new_unit_id} does not exist")
+        await _validate_owner(session, new_unit_id)
         goal.unit_id = new_unit_id
 
     entity_fields = {"name", "description"}

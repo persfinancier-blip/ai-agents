@@ -14,6 +14,7 @@ from app.models import (  # noqa: F401
     scenario,
     status_log,
     unit,
+    unit_group,
 )
 from app.models.unit import UnitKind
 from app.schemas.goal import GoalCreate

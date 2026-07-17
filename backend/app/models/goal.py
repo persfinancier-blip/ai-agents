@@ -35,7 +35,7 @@ class Goal(Base):
 
     entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("entity.id"), primary_key=True)
     parent_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("entity.id"), nullable=True, index=True)
-    unit_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("unit.entity_id"), nullable=True, index=True)
+    unit_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("entity.id"), nullable=True, index=True)
 
     role_label: Mapped[str] = mapped_column(String(20), default=RoleLabel.OWNER.value)
     is_backlog: Mapped[bool] = mapped_column(Boolean, default=False)

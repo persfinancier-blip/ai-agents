@@ -25,3 +25,6 @@ class Unit(Base):
 
     entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("entity.id"), primary_key=True)
     kind: Mapped[str] = mapped_column(String(20))
+    department_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("unit_group.entity_id"), nullable=True, index=True
+    )

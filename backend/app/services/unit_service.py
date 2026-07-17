@@ -4,9 +4,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.entity import Entity
 from app.models.goal import Goal
 from app.models.unit import Unit
+from app.models.unit_group import UnitGroup, UnitGroupKind
 from app.schemas.unit import UnitCreate, UnitRead, UnitUpdate
 
 UnitRow = tuple[Entity, Unit]
+
+
+class DepartmentNotFoundError(Exception):
+    """Raised when create/patch references a department_id that isn't an existing group."""
+
+
+class DepartmentKindError(Exception):
+    """Raised when department_id references a group whose kind isn't department."""
 
 
 def to_unit_read(entity: Entity, unit: Unit) -> UnitRead:
@@ -15,11 +24,25 @@ def to_unit_read(entity: Entity, unit: Unit) -> UnitRead:
         name=entity.name,
         kind=unit.kind,
         description=entity.description,
+        department_id=unit.department_id,
         created_at=entity.created_at,
     )
 
 
+async def _validate_department(session: AsyncSession, department_id: str | None) -> None:
+    if department_id is None:
+        return
+    result = await session.execute(select(UnitGroup).where(UnitGroup.entity_id == department_id))
+    group = result.scalars().one_or_none()
+    if group is None:
+        raise DepartmentNotFoundError(f"Department {department_id} does not exist")
+    if group.kind != UnitGroupKind.DEPARTMENT.value:
+        raise DepartmentKindError("department_id must reference a department")
+
+
 async def create_unit(session: AsyncSession, payload: UnitCreate) -> UnitRow:
+    await _validate_department(session, payload.department_id)
+
     entity = Entity(
         entity_type="unit",
         name=payload.name,
@@ -31,7 +54,7 @@ async def create_unit(session: AsyncSession, payload: UnitCreate) -> UnitRow:
     session.add(entity)
     await session.flush()  # populate entity.id
 
-    unit = Unit(entity_id=entity.id, kind=payload.kind.value)
+    unit = Unit(entity_id=entity.id, kind=payload.kind.value, department_id=payload.department_id)
     session.add(unit)
     await session.commit()
     await session.refresh(entity)
@@ -68,6 +91,9 @@ async def patch_unit(session: AsyncSession, unit_id: str, payload: UnitUpdate) -
         entity.description = updates["description"]
     if "kind" in updates and updates["kind"] is not None:
         unit.kind = payload.kind.value if payload.kind is not None else unit.kind
+    if "department_id" in updates:
+        await _validate_department(session, updates["department_id"])
+        unit.department_id = updates["department_id"]
 
     entity.version += 1
 
