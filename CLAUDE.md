@@ -26,6 +26,7 @@ Navigation — `docs/full-vision/INDEX.md`; doc-editing rules — `docs/full-vis
 
 ## Process
 
+- Full development-cycle protocol (roles, task lifecycle, DoD gate, rollback) — `docs/PROCESS.md`.
 - Branch off `main` (`feat/<milestone>-<subject>`); direct edits to `main` are blocked by a hook. Conventional Commits; cross-cutting changes get a separate `chore:` PR.
 - All user-facing UI text is in Russian (CONTRIBUTING "Localization").
 - LLM SDKs are imported ONLY in `backend/app/llm/<provider>_provider.py`; locally `LLM_PROVIDER=stub` — no keys needed.

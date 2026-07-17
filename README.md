@@ -63,7 +63,7 @@ npm run lint     # oxlint
 
 ## Правила разработки
 
-См. [`CONTRIBUTING.md`](CONTRIBUTING.md): vertical-slice PR, изоляция LLM-провайдера, русская локализация UI, зелёные ruff/mypy/pytest, Conventional Commits, запись в DEVLOG после каждого прохода.
+См. [`CONTRIBUTING.md`](CONTRIBUTING.md): vertical-slice PR, изоляция LLM-провайдера, русская локализация UI, зелёные ruff/mypy/pytest, Conventional Commits, запись в DEVLOG после каждого прохода. Протокол всего цикла разработки (роли, диспетчеризация, DoD-гейт, откат) — [`docs/PROCESS.md`](docs/PROCESS.md).
 
 ## MCP
 
