@@ -144,6 +144,7 @@ export interface UnitRead {
   name: string
   kind: string
   description: string | null
+  department_id: string | null
   created_at: string
 }
 

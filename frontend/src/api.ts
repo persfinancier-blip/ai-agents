@@ -103,3 +103,6 @@ export const deleteKpiFactor = (id: string) => request<void>(`/kpi-factors/${id}
 export const listUnits = () => request<UnitRead[]>('/units')
 
 export const listUnitGroups = () => request<UnitGroupRead[]>('/unit-groups')
+
+export const listTeamMembers = (teamId: string) =>
+  request<string[]>(`/unit-groups/${encodeURIComponent(teamId)}/members`)
