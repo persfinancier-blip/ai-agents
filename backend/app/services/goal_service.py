@@ -8,7 +8,7 @@ from app.models.entity import Entity
 from app.models.goal import Goal, GoalLifecycleStage
 from app.models.kpi import Kpi
 from app.schemas.goal import GoalCreate, GoalKpi, GoalPatch, GoalRead
-from app.services import kpi_factor_service, kpi_service
+from app.services import kpi_factor_service, kpi_service, unit_service
 
 KpiRow = tuple[Entity, Kpi]
 GoalRow = tuple[Entity, Goal]
@@ -26,20 +26,23 @@ class GoalKpiNotFoundError(Exception):
     """Raised when a patch's kpis list references an id that isn't one of the goal's KPIs."""
 
 
+class GoalUnitNotFoundError(Exception):
+    """Raised when create/patch references a unit_id that isn't an existing unit."""
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def compute_definiteness(owner: str, kpi_measurable: list[bool]) -> str:
-    """ "defined" needs an owner and at least one measurable KPI.
+def compute_definiteness(unit_id: str | None, kpi_measurable: list[bool]) -> str:
+    """ "defined" needs an assigned unit (ADR-0006) and at least one measurable KPI.
 
     "Measurable" means a numeric target OR (Step 3b) composite — value comes from a weighted
     sum of factor KPIs instead of a direct target; the caller (to_goal_read) precomputes this
     per KPI. No bottom-up aggregation from children — a parent's definiteness depends only on
     its own KPIs, same as a leaf.
     """
-    has_owner = bool(owner.strip())
-    return "defined" if has_owner and any(kpi_measurable) else "fog"
+    return "defined" if unit_id is not None and any(kpi_measurable) else "fog"
 
 
 async def to_goal_read(session: AsyncSession, entity: Entity, goal: Goal, kpi_rows: list[KpiRow]) -> GoalRead:
@@ -59,19 +62,25 @@ async def to_goal_read(session: AsyncSession, entity: Entity, goal: Goal, kpi_ro
             )
         )
 
+    unit_name = None
+    if goal.unit_id is not None:
+        unit_row = await unit_service.get_unit(session, goal.unit_id)
+        unit_name = unit_row[0].name if unit_row is not None else None
+
     return GoalRead(
         id=entity.id,
         entity_type=entity.entity_type,
         name=entity.name,
         description=entity.description,
-        owner=entity.owner,
+        unit_id=goal.unit_id,
+        unit_name=unit_name,
         status=entity.status,
         lifecycle_stage=entity.lifecycle_stage,
         risk_level=entity.risk_level,
         role_label=goal.role_label,
         kpis=kpis,
         is_backlog=goal.is_backlog,
-        definiteness=compute_definiteness(entity.owner, measurable),
+        definiteness=compute_definiteness(goal.unit_id, measurable),
         parent_id=goal.parent_id,
         created_at=entity.created_at,
         updated_at=entity.updated_at,
@@ -81,19 +90,23 @@ async def to_goal_read(session: AsyncSession, entity: Entity, goal: Goal, kpi_ro
 async def create_goal(session: AsyncSession, payload: GoalCreate) -> tuple[Entity, Goal, list[KpiRow]]:
     if payload.parent_id is not None and await _get_row(session, payload.parent_id) is None:
         raise GoalParentNotFoundError(f"Parent goal {payload.parent_id} does not exist")
+    if payload.unit_id is not None and await unit_service.get_unit(session, payload.unit_id) is None:
+        raise GoalUnitNotFoundError(f"Unit {payload.unit_id} does not exist")
 
     entity = Entity(
         entity_type="goal",
         name=payload.name,
         description=payload.description,
-        owner=payload.owner,
+        owner="",
         status="draft",
         lifecycle_stage=GoalLifecycleStage.DRAFT.value,
     )
     session.add(entity)
     await session.flush()  # populate entity.id
 
-    goal = Goal(entity_id=entity.id, role_label=payload.role_label.value, parent_id=payload.parent_id)
+    goal = Goal(
+        entity_id=entity.id, role_label=payload.role_label.value, parent_id=payload.parent_id, unit_id=payload.unit_id
+    )
     session.add(goal)
     await session.flush()
 
@@ -235,10 +248,16 @@ async def patch_goal(
                 raise GoalCycleError(f"Setting parent to {new_parent_id} would create a cycle")
         goal.parent_id = new_parent_id
 
-    entity_fields = {"name", "description", "owner"}
+    if "unit_id" in updates:
+        new_unit_id = updates["unit_id"]
+        if new_unit_id is not None and await unit_service.get_unit(session, new_unit_id) is None:
+            raise GoalUnitNotFoundError(f"Unit {new_unit_id} does not exist")
+        goal.unit_id = new_unit_id
+
+    entity_fields = {"name", "description"}
     for field, value in updates.items():
-        if field in ("parent_id", "kpis"):
-            continue  # handled separately (parent_id above, kpis diff-sync below)
+        if field in ("parent_id", "unit_id", "kpis"):
+            continue  # handled separately (parent_id/unit_id above, kpis diff-sync below)
         if field in entity_fields:
             setattr(entity, field, value)
         elif field == "role_label" and value is not None:

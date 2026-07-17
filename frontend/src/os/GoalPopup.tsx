@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { ApiError, createGoal, getGoal, listGoals, patchGoal } from '../api'
 import type { GoalKpiRead, GoalPatch, GoalRead } from '../types'
-import { deleteGoalWithCascadeConfirm, kpiValue, ownerOrDash } from './goalFormat'
+import { deleteGoalWithCascadeConfirm, kpiValue, unitNameOrDash } from './goalFormat'
 
 type Status = 'loading' | 'ready' | 'notfound' | 'error'
 
@@ -202,7 +202,7 @@ export function GoalPopup({
     }
   }, [])
 
-  const [editingField, setEditingField] = useState<'name' | 'description' | 'owner' | null>(null)
+  const [editingField, setEditingField] = useState<'name' | 'description' | null>(null)
   const [fieldDraft, setFieldDraft] = useState('')
   const skipFieldBlur = useRef(false)
   // create/insert-between: ✕/Escape/backdrop до коммита имени должны закрыть
@@ -313,9 +313,9 @@ export function GoalPopup({
     }
   }
 
-  /* ── правка имени/описания/владельца ─────────────────────────────────── */
+  /* ── правка имени/описания ───────────────────────────────────────────── */
 
-  const startField = (field: 'name' | 'description' | 'owner', current: string) => {
+  const startField = (field: 'name' | 'description', current: string) => {
     setFieldDraft(current)
     setEditingField(field)
   }
@@ -329,8 +329,6 @@ export function GoalPopup({
       if (name && name !== goal.name) void saveField({ name })
     } else if (field === 'description') {
       if (value !== (goal.description ?? '')) void saveField({ description: value })
-    } else if (field === 'owner') {
-      if (value !== goal.owner) void saveField({ owner: value })
     }
   }
   const fieldKeyDown = (e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -751,31 +749,7 @@ export function GoalPopup({
               )}
 
               <div className="s">
-                отв.{' '}
-                {editingField === 'owner' ? (
-                  <input
-                    className="edit mono"
-                    aria-label="Владелец цели"
-                    autoFocus
-                    disabled={busy}
-                    value={fieldDraft}
-                    onChange={(e) => setFieldDraft(e.target.value)}
-                    onKeyDown={fieldKeyDown}
-                    onBlur={fieldBlur}
-                  />
-                ) : (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="gpop-dashed"
-                    onClick={() => startField('owner', goal.owner)}
-                    onKeyDown={(e) => e.key === 'Enter' && startField('owner', goal.owner)}
-                    title="без владельца цель в тумане"
-                    aria-label="Изменить владельца цели"
-                  >
-                    {ownerOrDash(goal.owner)}
-                  </span>
-                )}
+                отв. <span title="без юнита цель в тумане">{unitNameOrDash(goal.unit_name)}</span>
               </div>
 
               <div className="s gpop-parent-row">

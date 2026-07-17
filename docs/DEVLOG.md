@@ -2,6 +2,16 @@
 
 Журнал проходов по репозиторию: дата · ветка/коммит · что сделано · что дальше. Новые записи — сверху. Добавляется командой `/devlog`.
 
+## 2026-07-17 · feat/unit-entity-backend · не закоммичено (промпт #41b)
+
+- **Что сделано:**
+  - Локальный проход вместо авто-диспатча (промпт `prompt-42-unit-entity-backend` дважды падал на воркере — лимиты/сбой, issues #37/#40): ADR-0006 backend-срез (Unit-подтип Entity, `goal.unit_id`, одноразовая миграция owner→Unit, `compute_definiteness` на `unit_id`, Goal API без `owner`, read-only `unit_name` во фронтенде) уже был реализован на этой ветке поверх старого мерж-бейза (`71d4eff`) — вместо повторной реализации ветка перебазирована на текущий `main` (`9838292`); конфликт только в `docs/DEVLOG.md` (наложение записей), разрешён вручную.
+  - DoD подтверждён локально после ребейза: backend `ruff check`/`ruff format --check`/`mypy app`/`pytest` (122 теста) и frontend `npm run build`/`npm run lint` — зелёные; миграция `0f9898942202` вручную прогнана на копии сидированной БД с pre-migration owner-текстом (два разных `owner` → два разных `Unit(kind=employee)`, дедуп по тексту, `goal.unit_id` проставлен верно).
+  - Housekeeping: заголовки записей №39 и №40 в DEVLOG исправлены (№39 — отсутствовал целиком, слился с телом №40; №40 — «не закоммичено» вместо реального состояния) на `main · <sha> (промпт №NN, PR #N)`. Опечатка «прompt #41» в BACKLOG.md не найдена в текущем файле (видимо, уже исправлена ранее).
+- **Дальше:**
+  - Открыть PR (заменяет собой PR #28 — старый закрывается с пометкой), закрыть issues #37/#40, удалить ветки неудачных воркер-прогонов `task/prompt-42-unit-entity-backend-20260717100116`/`-20260717142736`.
+  - После мержа — финализировать заголовок этой записи (`промпт #41b`) на `main · <merge-sha> (PR #N)`, тем же способом.
+
 ## 2026-07-17 · task/prompt-ops-07-process-canon · не закоммичено (промпт ops-07)
 
 - **Что сделано:**
@@ -82,7 +92,21 @@
   - Владелец мёржит PR (пасс намеренно не мёржится агентом — меняет процесс).
   - Завести тестовый issue с меткой `ai-task`, чтобы прогнать цикл вживую.
 
-## 2026-07-16 · docs/unit-entity-canon · не закоммичено (промпт №40)
+## 2026-07-16 · feat/unit-entity-backend · не закоммичено (промпт №41)
+
+- **Что сделано:**
+  - `app/models/unit.py` — Unit как Entity-подтип (паттерн Goal/Kpi), `UnitKind ∈ {employee, agent, external, device}`; `goal.unit_id` — новая nullable FK-колонка → `unit.entity_id`, индексирована.
+  - Схемы `app/schemas/unit.py` (`UnitCreate`/`UnitRead`/`UnitUpdate`); Goal API: `owner` убран из `GoalCreate`/`GoalPatch`/`GoalRead`, добавлены `unit_id` + денормализованный `unit_name`; `compute_definiteness` теперь читает `unit_id` вместо текста `entity.owner`; неизвестный `unit_id` на create/patch → 404.
+  - `app/services/unit_service.py` (CRUD) + `app/api/v1/units.py` (`/api/v1/units`, RU-ошибки); delete нулит `unit_id` на ссылающихся целях (без БД-каскадов, по паттерну проекта) вместо их удаления.
+  - Alembic-миграция `0f9898942202` — таблица `unit`, `goal.unit_id` (batch-mode для SQLite FK), плюс одноразовая миграция данных ADR-0006 §6: на сидированной dev-БД создала 4 юнита (`kind=employee`) из различных непустых `entity.owner` целей и проставила `unit_id`; upgrade/downgrade/upgrade проверен вручную.
+  - Тесты: `test_unit_service.py` (unit) + `test_units.py` (integration) — CRUD, delete-нулит-goals; `test_goal_service.py`/`test_goals.py` переведены на `unit_id`, добавлены кейсы неизвестного юнита; все тесты KPI-links/factors/cycles, ссылавшиеся на `owner`, приведены к новой схеме. Сид `scripts/seed_demo_goals.py` создаёт демо-юниты и передаёт `unit_id`.
+  - Фронтенд (минимально, без UI юнитов): `types.ts`/`api.ts` под новую Goal-схему; попап карточки — строка «отв. …» стала read-only отображением `unit_name` (инлайн-редактирование владельца убрано); `GoalCanvas.tsx`/`CommandPanel.tsx`/`goalFormat.ts` — та же замена везде, где рендерился `owner`. Demo-путь (`data.ts`, `GoalCard.tsx`) не тронут.
+  - `.claude/commands/devlog.md` — фикс правила вставки (только после intro-абзаца, без изменения существующих строк) + правило финализации заголовка после мержа (отдельный `chore:`-коммит).
+- **Дальше:**
+  - UI-милестон юнитов (список, назначение владельца из попапа на реальном `unit_id`) — см. BACKLOG.md, backend для него уже готов.
+  - ADR + слайс группировки юнитов (team/dept), увязка юнита как ресурса — остаются открытыми вопросами ADR-0006.
+
+## 2026-07-16 · main · 71d4eff (промпт №40, PR #25)
 
 - **Что сделано:**
   - `docs/adr/0006-unit-entity-and-goal-ownership.md` (Принято): Unit — подтип Entity; `unit.kind ∈ {employee, agent, external, device}` — четыре атомарных типа исполнителя (сотрудник/агент/вне контура/устройство), `hybrid` из прототипа `OsUnit` не переносится, team/dept — future-надстройка группировки, отдельный ADR+слайс; `goal.unit_id` заменяет (не дополняет) текстовый `entity.owner`; `entity.owner` остаётся платформенным полем для Decision/Kpi; разовая миграция owner→Unit зафиксирована на слайс 2 (промпт №41); 5 открытых вопросов оставлены нерешёнными (жизненный цикл, группировка, workspace, права, юнит-как-ресурс).
@@ -92,6 +116,8 @@
 - **Дальше:**
   - Backend-срез (промпт #41, отдельный проход после мержа этого PR): таблица `unit`, поле `goal.unit_id`, обновление `compute_definiteness`, миграция данных owner→Unit.
   - UI-милестон юнитов (список, назначение из попапа) — после backend-среза, не в этом проходе.
+
+## 2026-07-16 · main · 0b8f6e6 (промпт №39, PR #23)
 
 - **Что сделано:**
   - Драг рёбер на карте целей (`CommandPanel.tsx`, `RealGoalMap`): порт исходящих связей (`.gport`) на правом крае узла — pointer-down начинает драг-создание, пунктирная превью-линия (D6) следует за курсором, узел под курсором подсвечивается как drop-таргет (`.gcard.drop-target`), drop → `patchGoal(child, { parent_id })`.

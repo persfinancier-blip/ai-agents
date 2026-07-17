@@ -56,7 +56,8 @@ export interface GoalRead {
   entity_type: string
   name: string
   description: string | null
-  owner: string
+  unit_id: string | null
+  unit_name: string | null
   status: string
   lifecycle_stage: string
   risk_level: string
@@ -80,7 +81,7 @@ export interface GoalKpiWrite {
 
 export interface GoalCreate {
   name: string
-  owner?: string
+  unit_id?: string | null
   description?: string | null
   kpis?: GoalKpiWrite[]
   parent_id?: string | null
@@ -89,7 +90,7 @@ export interface GoalCreate {
 export interface GoalPatch {
   name?: string
   description?: string | null
-  owner?: string
+  unit_id?: string | null
   kpis?: GoalKpiWrite[]
   is_backlog?: boolean
   parent_id?: string | null

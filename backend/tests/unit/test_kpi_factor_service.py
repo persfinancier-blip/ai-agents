@@ -28,7 +28,7 @@ from app.services.kpi_factor_service import (
 async def _create_kpi(session, name: str, target: float | None) -> str:
     _entity, _goal, kpi_rows = await goal_service.create_goal(
         session,
-        GoalCreate(name=f"Goal {name}", owner="owner@example.com", kpis=[GoalKpi(name=name, target=target, unit="pt")]),
+        GoalCreate(name=f"Goal {name}", kpis=[GoalKpi(name=name, target=target, unit="pt")]),
     )
     kpi_entity, _kpi = kpi_rows[0]
     return kpi_entity.id
