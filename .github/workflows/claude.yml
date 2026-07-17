@@ -77,6 +77,28 @@ jobs:
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
 
+      - name: Trust the checkout directory
+        # A fresh runner has no ~/.claude.json, so the CLI's first-run
+        # workspace-trust dialog blocks every tool call (git push included),
+        # separately from --dangerously-skip-permissions (which only bypasses
+        # per-tool confirmation, not this onboarding gate). Pre-accept it for
+        # this checkout path, per the CLI's own suggested fix.
+        run: |
+          python3 -c "
+          import json, os
+          path = os.path.expanduser('~/.claude.json')
+          data = {}
+          if os.path.exists(path):
+              with open(path) as f:
+                  data = json.load(f)
+          data.setdefault('projects', {})['${{ github.workspace }}'] = {
+              **data.get('projects', {}).get('${{ github.workspace }}', {}),
+              'hasTrustDialogAccepted': True,
+          }
+          with open(path, 'w') as f:
+              json.dump(data, f)
+          "
+
       - name: Run Claude Code on the dispatched task
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
