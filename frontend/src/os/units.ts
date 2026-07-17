@@ -1,6 +1,6 @@
 // Юниты (промпт №43) — RU-подписи атомарных видов исполнителя (Management_Model.md §2, ADR-0006).
 
-import type { UnitKind } from '../types'
+import type { UnitGroupKind, UnitKind } from '../types'
 
 export const UNIT_KIND_LABEL: Record<UnitKind, string> = {
   employee: 'Сотрудник',
@@ -24,3 +24,13 @@ export const unitKindLabel = (kind: string): string =>
 
 export const unitKindColor = (kind: string): string | null =>
   KNOWN_KINDS.has(kind) ? UNIT_KIND_COLOR[kind as UnitKind] : null
+
+export const GROUP_KIND_LABEL: Record<UnitGroupKind, string> = {
+  department: 'Департамент',
+  team: 'Команда',
+}
+
+const KNOWN_GROUP_KINDS = new Set<string>(Object.keys(GROUP_KIND_LABEL))
+
+export const groupKindLabel = (kind: string): string =>
+  KNOWN_GROUP_KINDS.has(kind) ? GROUP_KIND_LABEL[kind as UnitGroupKind] : kind
