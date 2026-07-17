@@ -100,20 +100,41 @@ jobs:
           "
 
       - name: Run Claude Code on the dispatched task
+        # Claude Code treats .git as a protected directory that always
+        # prompts, even under --dangerously-skip-permissions (by design, not
+        # a bug — confirmed via ops-04 live testing: `git push` hung waiting
+        # for a confirmation that never comes headless). So Claude only
+        # commits locally here; the push and PR creation happen in the next
+        # step, run directly by the workflow shell, outside Claude's sandbox.
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
         run: |
           claude -p "This branch was created by the task dispatcher: its latest commit adds
           exactly one task prompt file under prompts/ (not in _done). Find it via
           \`git log -1 --name-only\`, read it, and execute it following CLAUDE.md and
           .claude/rules/. Use THIS branch as the working branch (rename is not
           needed). Satisfy the DoD for the touched zone. Move the prompt file to
-          prompts/_done/ in the same work. Open a PR to main titled per the prompt,
-          and leave it open for owner review. Use gh (already authenticated via
-          GH_TOKEN) to open the PR." \
+          prompts/_done/ in the same work. Commit your changes with git commit,
+          following this repo's Conventional Commits convention. Do NOT run
+          git push, do NOT create a PR, and do NOT ask for permission to do
+          either — those steps happen automatically after you finish. End your
+          turn once the commit is made." \
           --max-turns 40 \
           --dangerously-skip-permissions
+
+      - name: Push and open the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$(git log origin/${{ github.ref_name }}..HEAD --oneline)" ]; then
+            echo "No new commits from Claude — nothing to push." >&2
+            exit 1
+          fi
+          git push origin HEAD:refs/heads/${{ github.ref_name }}
+          TITLE=$(git log -1 --format=%s)
+          gh pr create --base main --head "${{ github.ref_name }}" \
+            --title "$TITLE" \
+            --body "Opened automatically by the task-push worker from \`${{ github.ref_name }}\`."
 
       - name: Dead-run alarm (task push path)
         if: failure() || cancelled()
