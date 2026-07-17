@@ -16,6 +16,7 @@ from app.models import (  # noqa: F401
     scenario,
     status_log,
     unit,
+    unit_group,
 )
 from app.models.entity import Entity
 from app.models.goal import Goal
@@ -49,6 +50,11 @@ def test_compute_definiteness_no_unit_is_fog() -> None:
 
 def test_compute_definiteness_unit_and_measurable_kpi_is_defined() -> None:
     assert goal_service.compute_definiteness("unit-1", [True]) == "defined"
+
+
+def test_compute_definiteness_group_owner_is_defined() -> None:
+    """ADR-0007: a group id is just another entity id to this check — same as a unit id."""
+    assert goal_service.compute_definiteness("group-1", [True]) == "defined"
 
 
 async def test_create_and_patch_goal() -> None:

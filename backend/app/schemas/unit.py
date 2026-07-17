@@ -9,12 +9,14 @@ class UnitCreate(BaseModel):
     name: str
     kind: UnitKind
     description: str | None = None
+    department_id: str | None = None
 
 
 class UnitUpdate(BaseModel):
     name: str | None = None
     kind: UnitKind | None = None
     description: str | None = None
+    department_id: str | None = None
 
 
 class UnitRead(BaseModel):
@@ -22,4 +24,5 @@ class UnitRead(BaseModel):
     name: str
     kind: str
     description: str | None
+    department_id: str | None
     created_at: datetime

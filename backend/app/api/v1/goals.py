@@ -7,6 +7,7 @@ from app.services import goal_service, kpi_service
 from app.services.goal_service import (
     GoalCycleError,
     GoalKpiNotFoundError,
+    GoalOwnerInvalidError,
     GoalParentNotFoundError,
     GoalUnitNotFoundError,
 )
@@ -30,6 +31,8 @@ async def create_goal(payload: GoalCreate, session: AsyncSession = Depends(get_s
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except GoalUnitNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Юнит не найден") from exc
+    except GoalOwnerInvalidError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     return await goal_service.to_goal_read(session, entity, goal, kpi_rows)
 
 
@@ -69,6 +72,8 @@ async def patch_goal(goal_id: str, payload: GoalPatch, session: AsyncSession = D
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except GoalUnitNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Юнит не найден") from exc
+    except GoalOwnerInvalidError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found")
     entity, goal, kpi_rows = result

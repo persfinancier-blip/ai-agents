@@ -21,6 +21,7 @@ from app.models import (  # noqa: F401
     scenario,
     status_log,
     unit,
+    unit_group,
 )
 from tests.fakes import DEFAULT_CFO_RESPONSE, FakeLLMProvider
 
