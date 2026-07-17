@@ -6,3 +6,4 @@
 - [RU accent rgba hardcode](feedback_ru-accent-rgba-hardcode.md) — rgba(168,85,247,x) purple-accent hardcodes in os.css are pre-existing convention, don't flag
 - [GoalPopup bubble-overlay pattern (D9)](feedback_gpop-bub-overlay-pattern.md) — .gpop-col/.gpop-bub is the codified repo-wide overlay standard (Visual_Reference D9), reuses .omsg styling intentionally
 - [.rpool CSS duplication](feedback_rpool-css-duplication.md) — new pickers tend to copy-paste .os-goal .rpool instead of reusing it; check every new picker/dropdown
+- [batch_alter_table SQLite precedent](feedback_batch-alter-table-sqlite-precedent.md) — FK/index-adding migrations use op.batch_alter_table with a cited quirk-comment; sanctioned, not a hand-edit violation. Hand-written data-backfill migrations are separately fine (no autogenerate equivalent).
