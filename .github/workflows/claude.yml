@@ -91,7 +91,7 @@ jobs:
           and leave it open for owner review. Use gh (already authenticated via
           GH_TOKEN) to open the PR." \
           --max-turns 40 \
-          --allowedTools "Bash,Read,Write,Edit,Glob,Grep"
+          --dangerously-skip-permissions
 
       - name: Dead-run alarm (task push path)
         if: failure() || cancelled()
