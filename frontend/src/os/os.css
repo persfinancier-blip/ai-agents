@@ -2738,3 +2738,34 @@
   font: 400 11.5px var(--sans);
   color: var(--i35);
 }
+
+/* дерево департаментов и команды (промпт №46) */
+
+.unit-section-caption {
+  padding: 12px 18px 4px;
+  font: 500 10.5px var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--i35);
+}
+
+.unit-dept-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px;
+  border-top: 1px solid var(--ln);
+}
+
+.unit-dept-name {
+  font: 600 12.5px var(--sans);
+  color: var(--ink);
+}
+
+.unit-team-row .unit-dept-row {
+  border-top: 1px solid var(--ln);
+}
+
+.unit-team-members {
+  padding: 0 18px 10px;
+}
