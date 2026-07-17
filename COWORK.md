@@ -16,6 +16,13 @@ You are the project's **architectural co-pilot**. You **do NOT write code into t
 - Cowork reads/inspects the repo only via the GitHub MCP (read-only), never writes to git.
 - All writes (commit/branch/PR/merge) — Claude Code only.
 - Direct push to `main` — owner only; agents always go through a PR.
+- **Auto-merge for worker PRs (owner decision, 2026-07-17):** a `task/**`-dispatched
+  worker PR whose DoD gate is green merges itself — no «принимаем» button-press
+  from the owner. Cowork's job moves to **post-merge verification** (read the
+  merged result, don't take the report on faith; rollback = revert PR). Gate
+  red → PR stays open with a `🔴` comment. Manually-opened PRs and the
+  issue/`@claude`-comment worker paths are unaffected — those still merge only
+  on the owner's explicit word. Details — `.claude/rules/github-automation.md`.
 - **Sandbox:** Cowork looks at repo state only via the GitHub MCP (read-only) — branches, PRs, diffs, files. It doesn't touch local git in its own sandbox. Cowork's only local operation is dropping a prompt file into `prompts/`; committing/pushing that file is Claude Code's job.
 - **Язык файлов:** операционные/агентские файлы (`.claude/**`, `CLAUDE.md`, `COWORK.md`) и промпт-файлы для Claude Code — на английском (как код/коммиты). Продуктовый канон (`docs/**` — PRD, Management_Model, Visual_Reference, ADR, DEVLOG, BACKLOG), `README.md`, `CONTRIBUTING.md` — по-русски. Литеральные RU UI-строки, цитаты канона и русские выводы команд (handoff/devlog/adr) внутри переведённых файлов остаются по-русски. Общение с владельцем и UI — русский.
 

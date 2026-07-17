@@ -5,14 +5,41 @@
   below). The worker runs on a GitHub Actions runner (`.github/workflows/claude.yml`),
   not on the owner's machine.
 - One PR per issue/dispatch, opened by the worker and linked back (`Closes #N`
-  for issues; the prompt filename for `task/**` pushes). CI (`ci.yml`) runs the
-  same DoD checks as local.
+  for issues; the prompt filename for `task/**` pushes).
 - Rework happens only via explicit `@claude <note>` comments on the issue or PR, from
   the owner or Cowork. No bot-to-bot loops, no autonomous Claude↔Claude review.
-- Merge only after the owner's explicit approval («принимаем»). The worker never
-  merges its own PR.
 - All token-economy rules from `CLAUDE.md` (model pin, minimal read scope, short
   reports) apply on the runner exactly as they do locally.
+- **`.github/workflows/**` changes are LOCAL-only.** The default `GITHUB_TOKEN`
+  cannot push changes under `.github/workflows/**` ("refusing to allow a GitHub
+  App to create or update workflow ... without `workflows` permission" —
+  confirmed on run 29559783511). Any task touching that path must be run as a
+  local pass by Claude Code, never dispatched through `task/**`/the issue-label
+  pipeline.
+
+## Auto-merge for worker PRs (owner decision, 2026-07-17)
+
+- **Full auto-merge:** a worker PR (`claude-task-push` job) whose DoD gate
+  passes merges itself (`gh pr merge --merge --delete-branch`) — the owner
+  presses no buttons. The «принимаем» gate that used to require the owner's
+  explicit approval before merge is removed **for worker PRs only**; the
+  `claude-issue` and `claude-comment` paths, and any manually-opened PR, still
+  merge only on the owner's word.
+- **PRs/merges made with `GITHUB_TOKEN` don't trigger other workflows**
+  (GitHub's anti-recursion protection): `ci.yml` will not run on a worker PR,
+  and won't run on `main` after a bot merge either. Because of this the DoD
+  gate cannot be delegated to CI — it's computed as a plain-shell step inside
+  `claude-task-push` itself (see the "DoD gate" step in `claude.yml`), zone-
+  scoped from `git diff --name-only origin/main...HEAD` (backend → ruff/mypy/
+  pytest, frontend → lint/build, docs/prompts-only → passes trivially).
+- **Gate red:** the PR is left open with a `🔴 Проверки не прошли: <what>`
+  comment; the watchdog/Cowork reports it. No merge happens.
+- **Verification moves post-merge:** Cowork checks the merged result (read
+  the files, don't take the report on faith) instead of gating the merge
+  itself. Rollback path = revert the merge PR.
+- If repo branch-protection settings block a bot from merging, the workflow
+  logs the exact blocker and the PR description states the setting for the
+  owner — settings are never changed by the agent without the owner's word.
 
 ## File-driven dispatch (prompt file → `task/*` branch → worker)
 
