@@ -2,6 +2,19 @@
 
 Журнал проходов по репозиторию: дата · ветка/коммит · что сделано · что дальше. Новые записи — сверху. Добавляется командой `/devlog`.
 
+## 2026-07-17 · chore/fix-push-bridge · не закоммичено (промпт ops-04)
+
+- **Что сделано:**
+  - Починен путь `task/**` push → воркер, найденный сломанным в ops-03: `anthropics/claude-code-action@v1` не поддерживает событие `push` («Unsupported event type: push»). Проверено, что `workflow_dispatch`/`repository_dispatch`-мост тоже не работает — `GITHUB_TOKEN` по умолчанию не может разбудить второй workflow (защита GitHub от рекурсии); PAT/App-токен не заводили без расширения секретов, поэтому выбран вариант из промпта #3.
+  - `claude-task-push` в `.github/workflows/claude.yml` теперь ставит `@anthropic-ai/claude-code` и гоняет `claude -p` напрямую (`CLAUDE_CODE_OAUTH_TOKEN`), а не через action.
+  - Живым тестированием (5 итераций) вскрыты и исправлены ещё два реальных препятствия: (1) CLI на голом раннере не проходит startup-диалог доверия к workspace — исправлено предварительной записью `hasTrustDialogAccepted` в `~/.claude.json` перед вызовом; (2) `.git` — защищённая директория в Claude Code, `git push` там всегда ждёт подтверждения, даже под `--dangerously-skip-permissions` (по дизайну CLI, не баг) — решение: Claude только коммитит локально, `git push` + `gh pr create` вынесены в отдельный шаг workflow (голый shell, вне сессии Claude).
+  - По итогам первого чистого прогона всплыла настройка репозитория `Actions → General → can_approve_pull_request_reviews` (была `false` по умолчанию) — блокировала `gh pr create` от `GITHUB_TOKEN`; включена (`gh api .../actions/permissions/workflow`, с подтверждения владельца).
+  - Финальный прогон (PR #33, ветка `task/smoke-test-ops04-...`) прошёл end-to-end без вмешательства: push → воркер → коммит → push → PR. Артефакты подчищены: ветки/worktree удалены, ложный issue `worker-failure` (#31 — из отладочного прогона до фикса .git) закрыт с комментарием.
+  - `.claude/rules/github-automation.md` — описан рабочий мост (CLI напрямую, не action).
+- **Дальше:**
+  - Владельцу: смёржить `chore/fix-push-bridge`, затем `schtasks /Run /TN "ai-agents-task-dispatch"` чтобы запустить вотчер (уже ретаргетирован в ops-03) — и путь prompt-файл → `task/*` → PR становится живым для реальных промптов.
+
+
 ## 2026-07-16 · chore/standalone-dispatcher · не закоммичено (промпт ops-03)
 
 - **Что сделано:**
