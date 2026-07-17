@@ -14,7 +14,7 @@ jobs:
   claude-issue:
     if: github.event_name == 'issues' && github.event.label.name == 'ai-task'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     concurrency:
       group: claude-${{ github.event.issue.number }}
       cancel-in-progress: false
@@ -32,7 +32,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--max-turns 40"
+          claude_args: "--max-turns 1000"
           prompt: |
             Read this issue and implement it following CLAUDE.md and .claude/rules/.
             Work on a feature branch off main. Satisfy the DoD for the touched zone
@@ -59,7 +59,7 @@ jobs:
     # action, since the action's event-type gate can't be bypassed for push.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/task/')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     concurrency:
       group: claude-${{ github.ref }}
       cancel-in-progress: false
@@ -119,7 +119,7 @@ jobs:
           git push, do NOT create a PR, and do NOT ask for permission to do
           either — those steps happen automatically after you finish. End your
           turn once the commit is made." \
-          --max-turns 40 \
+          --max-turns 1000 \
           --dangerously-skip-permissions
 
       - name: Push and open the PR
@@ -206,7 +206,7 @@ jobs:
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     concurrency:
       group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
       cancel-in-progress: false
@@ -224,7 +224,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--max-turns 40"
+          claude_args: "--max-turns 1000"
 
       - name: Dead-run alarm (comment path)
         if: failure() || cancelled()
