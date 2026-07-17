@@ -17,6 +17,7 @@ import type { GoalPopupMode } from './GoalPopup'
 import { deleteGoalWithCascadeConfirm } from './goalFormat'
 import { buildGoalForest, layoutForest } from './goalTree'
 import type { GoalNode } from './goalTree'
+import { UnitsPanel } from './UnitsPanel'
 
 const STROKE = 'rgba(231,232,238,.55)'
 
@@ -805,6 +806,7 @@ export function CommandPanel({
   const [extra, setExtra] = useState<Record<string, ChatMsg[]>>({})
   const [text, setText] = useState('')
   const [advisorOpen, setAdvisorOpen] = useState(false)
+  const [unitsOpen, setUnitsOpen] = useState(false)
   const [topicId, setTopicId] = useState(ADVISOR_TOPICS[0].id)
 
   // реальные цели: null — загрузка; [] и далее — ответ API; error — отказ сети/бэка
@@ -976,6 +978,14 @@ export function CommandPanel({
           <span className="pill rmeta">
             МАСШТАБ <b>КОМПАНИЯ</b> · ХОД <b>14</b> · пн 06.07 <b>09:41</b>
           </span>
+          <button
+            className="pill rmeta"
+            style={{ cursor: 'pointer' }}
+            onClick={() => setUnitsOpen(true)}
+            aria-label="Открыть панель юнитов"
+          >
+            ЮНИТЫ
+          </button>
           <span className="ava">АС</span>
         </div>
       </header>
@@ -1142,6 +1152,8 @@ export function CommandPanel({
               </div>
             </div>
           )}
+
+          {unitsOpen && <UnitsPanel onClose={() => setUnitsOpen(false)} />}
 
           {popupMode && (
             <GoalPopup
