@@ -56,6 +56,7 @@
 - **Update rule:** any change to `scripts/dispatch-tasks.ps1` must end with
   re-copying it to `%LOCALAPPDATA%\ai-agents-ops\dispatch-tasks.ps1` — the
   installed copy does not auto-update from the repo.
+- Dispatch notice to the owner = one line; prompt bodies are never echoed in chat.
 - It watches `prompts/` on the owner's machine (event-driven
   `FileSystemWatcher`, no polling) and ships any new `prompts/prompt-*.md`
   file to GitHub as its own `task/<slug>-<timestamp>` branch, which the
