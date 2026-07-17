@@ -8,9 +8,14 @@ metadata:
 The `skipBlur`/`skipFieldBlur`/`skipDraftBlur` ref-flag idiom (set `true` right before an
 Enter/Escape-triggered state change, consumed-and-reset by the subsequent `onBlur` handler) is a
 validated, working pattern in this repo for preventing double PATCH/POST requests and lost input in
-inline-edit fields. Seen in `frontend/src/os/RealGoalCard.tsx` (`fieldBlur`/`fieldKeyDown`,
+inline-edit fields. Originally seen in `frontend/src/os/RealGoalCard.tsx` (`fieldBlur`/`fieldKeyDown`,
 `KpiFieldsRow`) and `frontend/src/os/CommandPanel.tsx` (draft goal node), first introduced in
 `feat/frontend-goal-editing` (prompt-22, Ф3).
+
+**2026-07 update:** `RealGoalCard.tsx` was deleted in F7a (`b6d8f3a`, prompt #35); the goal-card
+editing UI moved into `frontend/src/os/GoalPopup.tsx`, which carries the same idiom under
+`skipBlur` (goal name/description field, line ~56) and `skipFieldBlur` (KPI fields row, line ~207).
+`CommandPanel.tsx`'s `skipDraftBlur` (draft goal node) is unchanged. Re-verified current on this pass.
 
 **Why:** Removing a focused input from the DOM (on Enter/Escape → unmount) reliably fires a native
 `blur` before removal completes, which bubbles to React's root listener — without the guard this
