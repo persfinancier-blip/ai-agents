@@ -134,3 +134,15 @@ export interface KpiFactorCreate {
   factor_kpi_id: string
   weight: number
 }
+
+/* Unit API (промпт №43, read-only срез) — зеркало backend/app/schemas/unit.py */
+
+export type UnitKind = 'employee' | 'agent' | 'external' | 'device'
+
+export interface UnitRead {
+  entity_id: string
+  name: string
+  kind: string
+  description: string | null
+  created_at: string
+}

@@ -10,6 +10,7 @@ import type {
   KpiLinkCreate,
   KpiLinkCycleRead,
   KpiLinkRead,
+  UnitRead,
 } from './types'
 
 const BASE = '/api/v1'
@@ -95,3 +96,7 @@ export const createKpiFactor = (payload: KpiFactorCreate) =>
   request<KpiFactorRead>('/kpi-factors', { method: 'POST', body: JSON.stringify(payload) })
 
 export const deleteKpiFactor = (id: string) => request<void>(`/kpi-factors/${id}`, { method: 'DELETE' })
+
+/* Unit API (промпт №43, read-only срез) */
+
+export const listUnits = () => request<UnitRead[]>('/units')
