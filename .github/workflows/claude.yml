@@ -136,6 +136,56 @@ jobs:
             --title "$TITLE" \
             --body "Opened automatically by the task-push worker from \`${{ github.ref_name }}\`."
 
+      - name: DoD gate
+        # PRs and merges made with GITHUB_TOKEN don't trigger other workflows
+        # (GitHub anti-recursion), so ci.yml will not run on this PR or on
+        # main after a bot merge — the gate has to be computed right here.
+        id: gate
+        run: |
+          TOUCHED=$(git diff --name-only origin/main...HEAD)
+          echo "$TOUCHED"
+          FAILED=""
+
+          if echo "$TOUCHED" | grep -q '^backend/'; then
+            cd backend
+            pip install -e ".[dev]" || FAILED="$FAILED backend-install"
+            ruff check . || FAILED="$FAILED ruff-check"
+            ruff format --check . || FAILED="$FAILED ruff-format"
+            python -m mypy app || FAILED="$FAILED mypy"
+            pytest || FAILED="$FAILED pytest"
+            cd ..
+          fi
+
+          if echo "$TOUCHED" | grep -q '^frontend/'; then
+            cd frontend
+            npm ci || FAILED="$FAILED frontend-install"
+            npm run lint || FAILED="$FAILED lint"
+            npm run build || FAILED="$FAILED build"
+            cd ..
+          fi
+
+          if [ -n "$FAILED" ]; then
+            echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Auto-merge on green gate
+        if: steps.gate.outputs.passed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr merge "${{ github.ref_name }}" --merge --delete-branch || \
+            echo "::error::Auto-merge blocked (repo settings?) — see PR description for the owner." >&2
+
+      - name: Report gate failure
+        if: steps.gate.outputs.passed == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ github.ref_name }}" --body "🔴 Проверки не прошли:${{ steps.gate.outputs.failed }}"
+
       - name: Dead-run alarm (task push path)
         if: failure() || cancelled()
         uses: actions/github-script@v7
