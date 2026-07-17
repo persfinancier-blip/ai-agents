@@ -32,7 +32,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--max-turns 40"
+          claude_args: "--max-turns 100"
           prompt: |
             Read this issue and implement it following CLAUDE.md and .claude/rules/.
             Work on a feature branch off main. Satisfy the DoD for the touched zone
@@ -119,7 +119,7 @@ jobs:
           git push, do NOT create a PR, and do NOT ask for permission to do
           either — those steps happen automatically after you finish. End your
           turn once the commit is made." \
-          --max-turns 40 \
+          --max-turns 100 \
           --dangerously-skip-permissions
 
       - name: Push and open the PR
@@ -224,7 +224,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--max-turns 40"
+          claude_args: "--max-turns 100"
 
       - name: Dead-run alarm (comment path)
         if: failure() || cancelled()
