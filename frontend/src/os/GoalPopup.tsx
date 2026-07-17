@@ -8,9 +8,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { ApiError, createGoal, getGoal, listGoals, patchGoal } from '../api'
-import type { GoalKpiRead, GoalPatch, GoalRead } from '../types'
+import { ApiError, createGoal, getGoal, listGoals, listUnitGroups, listUnits, patchGoal } from '../api'
+import type { GoalKpiRead, GoalPatch, GoalRead, UnitGroupRead, UnitRead } from '../types'
 import { deleteGoalWithCascadeConfirm, kpiValue, unitNameOrDash } from './goalFormat'
+import { groupKindLabel, unitKindColor, unitKindLabel } from './units'
 
 type Status = 'loading' | 'ready' | 'notfound' | 'error'
 
@@ -167,6 +168,102 @@ function ParentPicker({
   )
 }
 
+// пикер владельца (промпт №45, ADR-0007) — тот же D9-паттерн, что ParentPicker,
+// но список смешивает юниты и группы (department/team) с поиском по имени.
+function OwnerPicker({
+  units,
+  groups,
+  error,
+  borderColor,
+  onChoose,
+  onClose,
+}: {
+  units: UnitRead[] | null
+  groups: UnitGroupRead[] | null
+  error: boolean
+  borderColor: string
+  onChoose: (unitId: string | null) => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [onClose])
+
+  const q = query.trim().toLowerCase()
+  const filteredUnits = units?.filter((u) => u.name.toLowerCase().includes(q)) ?? null
+  const filteredDepartments = groups?.filter((g) => g.kind === 'department' && g.name.toLowerCase().includes(q)) ?? null
+  const filteredTeams = groups?.filter((g) => g.kind === 'team' && g.name.toLowerCase().includes(q)) ?? null
+  const loading = units === null || groups === null
+  const empty = !loading && !filteredUnits?.length && !filteredDepartments?.length && !filteredTeams?.length
+
+  return (
+    <div className="gpop-bub gpop-parent-picker" style={{ borderColor }} ref={ref}>
+      <input
+        className="edit"
+        aria-label="Поиск юнита или группы"
+        placeholder="поиск…"
+        autoFocus
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        style={{ marginBottom: 8 }}
+      />
+      <div className="rpool">
+        <button onClick={() => onChoose(null)}>
+          <b>— не назначен</b>
+        </button>
+        {error && <div className="note">Не удалось загрузить список</div>}
+        {!error && loading && <div className="note">загрузка…</div>}
+        {!error && empty && <div className="note">нет юнитов и групп</div>}
+        {!error && !!filteredUnits?.length && (
+          <>
+            <div className="note">Юниты</div>
+            {filteredUnits.map((u) => {
+              const color = unitKindColor(u.kind)
+              return (
+                <button key={u.entity_id} onClick={() => onChoose(u.entity_id)}>
+                  <b>{u.name}</b>
+                  <span className="unit-chip" style={color ? { color, borderColor: color } : undefined}>
+                    {unitKindLabel(u.kind)}
+                  </span>
+                </button>
+              )
+            })}
+          </>
+        )}
+        {!error && !!filteredDepartments?.length && (
+          <>
+            <div className="note">Департаменты</div>
+            {filteredDepartments.map((g) => (
+              <button key={g.entity_id} onClick={() => onChoose(g.entity_id)}>
+                <b>{g.name}</b>
+                <span className="unit-chip">{groupKindLabel(g.kind)}</span>
+              </button>
+            ))}
+          </>
+        )}
+        {!error && !!filteredTeams?.length && (
+          <>
+            <div className="note">Команды</div>
+            {filteredTeams.map((g) => (
+              <button key={g.entity_id} onClick={() => onChoose(g.entity_id)}>
+                <b>{g.name}</b>
+                <span className="unit-chip">{groupKindLabel(g.kind)}</span>
+              </button>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function GoalPopup({
   mode,
   branch,
@@ -218,6 +315,11 @@ export function GoalPopup({
   const [parentOptions, setParentOptions] = useState<GoalRead[] | null>(null)
   const [parentOptionsError, setParentOptionsError] = useState(false)
 
+  const [ownerPickerOpen, setOwnerPickerOpen] = useState(false)
+  const [ownerUnits, setOwnerUnits] = useState<UnitRead[] | null>(null)
+  const [ownerGroups, setOwnerGroups] = useState<UnitGroupRead[] | null>(null)
+  const [ownerOptionsError, setOwnerOptionsError] = useState(false)
+
   // создание: имя ещё не закоммичено — карточка пустая, поле имени в фокусе
   const [nameDraft, setNameDraft] = useState('')
   const [creating, setCreating] = useState(false)
@@ -237,6 +339,9 @@ export function GoalPopup({
     setParentName(null)
     setParentPickerOpen(false)
     setParentOptions(null)
+    setOwnerPickerOpen(false)
+    setOwnerUnits(null)
+    setOwnerGroups(null)
 
     getGoal(goalId)
       .then((g) => {
@@ -261,12 +366,16 @@ export function GoalPopup({
         setParentPickerOpen(false)
         return
       }
+      if (ownerPickerOpen) {
+        setOwnerPickerOpen(false)
+        return
+      }
       if (creatingMode) skipCreateBlur.current = true
       onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, parentPickerOpen, creatingMode])
+  }, [onClose, parentPickerOpen, ownerPickerOpen, creatingMode])
 
   useEffect(() => {
     if (!goal?.parent_id) {
@@ -363,6 +472,26 @@ export function GoalPopup({
   const chooseParent = (parentId: string | null) => {
     setParentPickerOpen(false)
     void saveField({ parent_id: parentId })
+  }
+
+  /* ── правка владельца (юнит или группа, пикер-облачко D9 с поиском) ──── */
+
+  const openOwnerPicker = () => {
+    setOwnerPickerOpen(true)
+    setOwnerUnits(null)
+    setOwnerGroups(null)
+    setOwnerOptionsError(false)
+    Promise.all([listUnits(), listUnitGroups()])
+      .then(([units, groups]) => {
+        setOwnerUnits(units)
+        setOwnerGroups(groups)
+      })
+      .catch(() => setOwnerOptionsError(true))
+  }
+  const closeOwnerPicker = () => setOwnerPickerOpen(false)
+  const chooseOwner = (unitId: string | null) => {
+    setOwnerPickerOpen(false)
+    void saveField({ unit_id: unitId })
   }
 
   /* ── правка KPI (diff-sync по id — существующие id не терять) ───────── */
@@ -748,8 +877,29 @@ export function GoalPopup({
                 </div>
               )}
 
-              <div className="s">
-                отв. <span title="без юнита цель в тумане">{unitNameOrDash(goal.unit_name)}</span>
+              <div className="s gpop-parent-row">
+                отв.{' '}
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="gpop-dashed"
+                  title="без юнита цель в тумане"
+                  onClick={() => (ownerPickerOpen ? closeOwnerPicker() : openOwnerPicker())}
+                  onKeyDown={(e) => e.key === 'Enter' && (ownerPickerOpen ? closeOwnerPicker() : openOwnerPicker())}
+                  aria-label="Изменить владельца цели"
+                >
+                  {unitNameOrDash(goal.unit_name)}
+                </span>
+                {ownerPickerOpen && (
+                  <OwnerPicker
+                    units={ownerUnits}
+                    groups={ownerGroups}
+                    error={ownerOptionsError}
+                    borderColor={branch.bd}
+                    onChoose={chooseOwner}
+                    onClose={closeOwnerPicker}
+                  />
+                )}
               </div>
 
               <div className="s gpop-parent-row">

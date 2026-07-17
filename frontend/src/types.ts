@@ -146,3 +146,16 @@ export interface UnitRead {
   description: string | null
   created_at: string
 }
+
+/* UnitGroup API (промпт №45, ADR-0007) — зеркало backend/app/schemas/unit_group.py */
+
+export type UnitGroupKind = 'department' | 'team'
+
+export interface UnitGroupRead {
+  entity_id: string
+  name: string
+  kind: string
+  description: string | null
+  parent_id: string | null
+  created_at: string
+}

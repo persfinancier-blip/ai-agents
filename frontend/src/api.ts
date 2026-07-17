@@ -10,6 +10,7 @@ import type {
   KpiLinkCreate,
   KpiLinkCycleRead,
   KpiLinkRead,
+  UnitGroupRead,
   UnitRead,
 } from './types'
 
@@ -100,3 +101,5 @@ export const deleteKpiFactor = (id: string) => request<void>(`/kpi-factors/${id}
 /* Unit API (промпт №43, read-only срез) */
 
 export const listUnits = () => request<UnitRead[]>('/units')
+
+export const listUnitGroups = () => request<UnitGroupRead[]>('/unit-groups')
