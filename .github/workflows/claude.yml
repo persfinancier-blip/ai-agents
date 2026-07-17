@@ -53,6 +53,10 @@ jobs:
             });
 
   claude-task-push:
+    # anthropics/claude-code-action@v1 does not support the `push` event
+    # ("Unsupported event type: push") — found during ops-03 testing. This
+    # job runs the Claude Code CLI directly instead of going through the
+    # action, since the action's event-type gate can't be bypassed for push.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/task/')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -70,18 +74,67 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--max-turns 40"
-          prompt: |
-            This branch was created by the task dispatcher: its latest commit adds
-            exactly one task prompt file under prompts/ (not in _done). Find it via
-            `git log -1 --name-only`, read it, and execute it following CLAUDE.md and
-            .claude/rules/. Use THIS branch as the working branch (rename is not
-            needed). Satisfy the DoD for the touched zone. Move the prompt file to
-            prompts/_done/ in the same work. Open a PR to main titled per the prompt,
-            and leave it open for owner review.
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Trust the checkout directory
+        # A fresh runner has no ~/.claude.json, so the CLI's first-run
+        # workspace-trust dialog blocks every tool call (git push included),
+        # separately from --dangerously-skip-permissions (which only bypasses
+        # per-tool confirmation, not this onboarding gate). Pre-accept it for
+        # this checkout path, per the CLI's own suggested fix.
+        run: |
+          python3 -c "
+          import json, os
+          path = os.path.expanduser('~/.claude.json')
+          data = {}
+          if os.path.exists(path):
+              with open(path) as f:
+                  data = json.load(f)
+          data.setdefault('projects', {})['${{ github.workspace }}'] = {
+              **data.get('projects', {}).get('${{ github.workspace }}', {}),
+              'hasTrustDialogAccepted': True,
+          }
+          with open(path, 'w') as f:
+              json.dump(data, f)
+          "
+
+      - name: Run Claude Code on the dispatched task
+        # Claude Code treats .git as a protected directory that always
+        # prompts, even under --dangerously-skip-permissions (by design, not
+        # a bug — confirmed via ops-04 live testing: `git push` hung waiting
+        # for a confirmation that never comes headless). So Claude only
+        # commits locally here; the push and PR creation happen in the next
+        # step, run directly by the workflow shell, outside Claude's sandbox.
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          claude -p "This branch was created by the task dispatcher: its latest commit adds
+          exactly one task prompt file under prompts/ (not in _done). Find it via
+          \`git log -1 --name-only\`, read it, and execute it following CLAUDE.md and
+          .claude/rules/. Use THIS branch as the working branch (rename is not
+          needed). Satisfy the DoD for the touched zone. Move the prompt file to
+          prompts/_done/ in the same work. Commit your changes with git commit,
+          following this repo's Conventional Commits convention. Do NOT run
+          git push, do NOT create a PR, and do NOT ask for permission to do
+          either — those steps happen automatically after you finish. End your
+          turn once the commit is made." \
+          --max-turns 40 \
+          --dangerously-skip-permissions
+
+      - name: Push and open the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$(git log origin/${{ github.ref_name }}..HEAD --oneline)" ]; then
+            echo "No new commits from Claude — nothing to push." >&2
+            exit 1
+          fi
+          git push origin HEAD:refs/heads/${{ github.ref_name }}
+          TITLE=$(git log -1 --format=%s)
+          gh pr create --base main --head "${{ github.ref_name }}" \
+            --title "$TITLE" \
+            --body "Opened automatically by the task-push worker from \`${{ github.ref_name }}\`."
 
       - name: Dead-run alarm (task push path)
         if: failure() || cancelled()

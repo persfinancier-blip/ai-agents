@@ -42,6 +42,15 @@
   dead/failed run posts an issue comment (label path) or opens a
   `worker-failure`-labeled issue with the run URL (task-push path), via a
   token-free `github-script` step. `worker-failure` never triggers the worker.
+- **The `claude-task-push` job does not use `anthropics/claude-code-action@v1`**
+  (found in ops-04: the action rejects the `push` event outright —
+  "Unsupported event type: push" — and neither `workflow_dispatch` nor
+  `repository_dispatch` bridges work around it, since the default
+  `GITHUB_TOKEN` cannot trigger a second workflow run). Instead this job
+  installs `@anthropic-ai/claude-code` and runs `claude -p "<prompt>"`
+  directly, authenticated via `CLAUDE_CODE_OAUTH_TOKEN`, with `gh` (`GH_TOKEN`)
+  for PR creation. The `claude-issue` and `claude-comment` jobs are unaffected
+  — their trigger events are supported by the action.
 
 ## Prompt-file naming
 
