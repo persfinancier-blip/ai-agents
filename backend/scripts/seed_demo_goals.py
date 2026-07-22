@@ -1,4 +1,5 @@
-"""Сид демо-целей для карты целей (промпт №17, обновлено промптом №41 — unit_id вместо owner-текста).
+"""Сид демо-целей для карты целей (промпт №17, обновлено промптом №41 — unit_id вместо owner-текста,
+промптом №50 — пара демо-целей с deadline/importance/urgency, визуальный материал для промпта №51).
 
 Запуск из backend/ (venv-лаунчеры битые, только так):
 
@@ -11,6 +12,7 @@ target — тоже туман), 1 отдельный корень.
 """
 
 import asyncio
+from datetime import date
 
 from app.db.session import SessionLocal
 from app.models.unit import UnitKind
@@ -49,12 +51,18 @@ async def seed() -> None:
                 unit_id=atlas_crm.id,
                 parent_id=root_entity.id,
                 kpis=[GoalKpi(name="Конверсия воронки", target=12, unit="%")],
+                deadline=date(2026, 9, 30),
+                importance=True,
+                urgency=True,
             ),
             GoalCreate(
                 name="Усиление отдела продаж",
                 unit_id=sokolova.id,
                 parent_id=root_entity.id,
                 kpis=[GoalKpi(name="Наняты менеджеры", target=2, unit="чел")],
+                deadline=date(2026, 12, 31),
+                importance=True,
+                urgency=False,
             ),
             # Туман войны: ни юнита, ни KPI.
             GoalCreate(name="Пилоты в enterprise-сегменте", unit_id=None, parent_id=root_entity.id),

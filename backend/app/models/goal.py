@@ -1,6 +1,7 @@
 import enum
+from datetime import date
 
-from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy import Boolean, Date, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -39,3 +40,10 @@ class Goal(Base):
 
     role_label: Mapped[str] = mapped_column(String(20), default=RoleLabel.OWNER.value)
     is_backlog: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # ADR-0008: deadline is date-only (no time); importance/urgency are independent flags —
+    # null = "не задано", false = an explicit "неважно"/"несрочно". Eisenhower quadrant is
+    # derived in the UI from the pair, never stored.
+    deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
+    importance: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    urgency: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

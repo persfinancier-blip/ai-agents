@@ -2,6 +2,18 @@
 
 Записи с 2026-07-17 по 2026-07-22.
 
+## 2026-07-22 · task/prompt-50-goal-deadline-priority-backend-20260722141207 · не закоммичено (промпт №50)
+
+- **Что сделано:**
+  - ADR-0008 (`docs/adr/0008-goal-deadline-importance-urgency.md`): `Goal.deadline: date | null`, `Goal.importance: bool | null`, `Goal.urgency: bool | null`; `null` = «не задано», отличается от осознанного `false`; квадрант Эйзенхауэра не хранится — вычисляется в UI из пары флагов; `compute_definiteness` не затронут.
+  - Alembic-миграция (`a205b73f05ad`) добавляет три nullable-колонки на `goal`, без backfill.
+  - `GoalCreate`/`GoalPatch`/`GoalRead` расширены; `goal_service.create_goal`/`to_goal_read` прокидывают новые поля; `patch_goal` уже был достаточно общим — новые поля попадают в существующий diff-style `setattr`-фолбэк без правок его логики.
+  - Тесты (`tests/integration/test_goals.py`): create с/без полей, patch set/unset/явный null/отсутствие поля = не тронуто, `definiteness` не зависит от новых полей.
+  - `scripts/seed_demo_goals.py`: двум демо-целям добавлены `deadline`/`importance`/`urgency` (материал для промпта №51).
+  - `ruff check`/`ruff format --check`/`mypy app`/`pytest` — зелёные (141 passed). Фронтенд не тронут.
+- **Дальше:**
+  - Промпт №51: секции «СРОК» и «ВАЖНОСТЬ · СРОЧНОСТЬ» в `GoalPopup` — UI-половина этого слайса.
+
 ## 2026-07-22 · task/prompt-49-goalcanvas-geometry-20260722135449 · не закоммичено (промпт №49)
 
 - **Что сделано:**

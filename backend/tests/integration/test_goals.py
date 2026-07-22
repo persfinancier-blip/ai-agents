@@ -389,3 +389,83 @@ async def test_delete_cascade_removes_whole_subtree_and_kpis(client: AsyncClient
 async def test_delete_missing_goal_returns_404(client: AsyncClient) -> None:
     resp = await client.delete("/api/v1/goals/does-not-exist")
     assert resp.status_code == 404
+
+
+async def test_create_goal_without_deadline_fields_defaults_to_null(client: AsyncClient) -> None:
+    resp = await client.post("/api/v1/goals", json=_payload())
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["deadline"] is None
+    assert body["importance"] is None
+    assert body["urgency"] is None
+
+
+async def test_create_goal_with_deadline_importance_urgency(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/v1/goals",
+        json=_payload(deadline="2026-12-31", importance=True, urgency=False),
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["deadline"] == "2026-12-31"
+    assert body["importance"] is True
+    assert body["urgency"] is False
+
+
+async def test_patch_goal_sets_deadline_importance_urgency(client: AsyncClient) -> None:
+    create = await client.post("/api/v1/goals", json=_payload())
+    goal_id = create.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/goals/{goal_id}",
+        json={"deadline": "2026-08-15", "importance": False, "urgency": True},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["deadline"] == "2026-08-15"
+    assert body["importance"] is False
+    assert body["urgency"] is True
+
+
+async def test_patch_goal_unsets_deadline_importance_urgency_with_explicit_null(client: AsyncClient) -> None:
+    create = await client.post("/api/v1/goals", json=_payload(deadline="2026-12-31", importance=True, urgency=True))
+    goal_id = create.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/goals/{goal_id}",
+        json={"deadline": None, "importance": None, "urgency": None},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["deadline"] is None
+    assert body["importance"] is None
+    assert body["urgency"] is None
+
+
+async def test_patch_goal_without_deadline_fields_leaves_them_untouched(client: AsyncClient) -> None:
+    create = await client.post("/api/v1/goals", json=_payload(deadline="2026-12-31", importance=True, urgency=False))
+    goal_id = create.json()["id"]
+
+    resp = await client.patch(f"/api/v1/goals/{goal_id}", json={"name": "Renamed"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["deadline"] == "2026-12-31"
+    assert body["importance"] is True
+    assert body["urgency"] is False
+
+
+async def test_definiteness_unaffected_by_deadline_importance_urgency(client: AsyncClient) -> None:
+    unit_id = await _create_unit_id(client)
+    resp = await client.post(
+        "/api/v1/goals",
+        json=_payload(unit_id=unit_id, deadline="2026-01-01", importance=True, urgency=True),
+    )
+    assert resp.status_code == 201
+    assert resp.json()["definiteness"] == "defined"
+
+    resp_no_unit = await client.post(
+        "/api/v1/goals",
+        json=_payload(deadline="2026-01-01", importance=True, urgency=True),
+    )
+    assert resp_no_unit.status_code == 201
+    assert resp_no_unit.json()["definiteness"] == "fog"
