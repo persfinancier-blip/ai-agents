@@ -29,7 +29,11 @@ TMP=$(mktemp)
   git diff origin/main...HEAD | head -c 120000
 } > "$TMP"
 
-VERDICT=$(claude -p "$(cat "$TMP")" --max-turns 30 --dangerously-skip-permissions 2>/dev/null | grep -E '^(PASS|FAIL)' | head -1)
+# Strict match (PASS alone / FAIL: reason) + sanitize: no quote, backtick,
+# dollar or backslash may survive into the verdict — it travels into workflow
+# outputs and PR comments (ops-14, injection crash fix).
+VERDICT=$(claude -p "$(cat "$TMP")" --max-turns 30 --dangerously-skip-permissions 2>/dev/null \
+  | grep -E '^(PASS$|PASS |FAIL: )' | head -1 | tr -d '`"$\\' | cut -c1-300)
 rm -f "$TMP"
 
 if [ -z "${VERDICT:-}" ]; then
