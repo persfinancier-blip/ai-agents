@@ -164,6 +164,14 @@ jobs:
             cd ..
           fi
 
+          # Objective structural checks that apply to every pass (prompt archived,
+          # no conflict markers, no workflow edits via the pipeline). Logic lives
+          # in scripts/verify-pass.sh so it can be improved through the normal
+          # task pipeline without touching this workflow file.
+          if [ -f scripts/verify-pass.sh ]; then
+            bash scripts/verify-pass.sh || FAILED="$FAILED verify-pass"
+          fi
+
           if [ -n "$FAILED" ]; then
             echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
             echo "passed=false" >> "$GITHUB_OUTPUT"
@@ -171,8 +179,32 @@ jobs:
             echo "passed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Self-review the pass
+        # Independent second Claude pass: does the diff actually satisfy the
+        # prompt's Scope + DoD? It did not write the code, so it is not grading
+        # its own homework. Logic lives in scripts/self-review.sh (improvable
+        # via the normal pipeline). Fail-open: a silent/broken reviewer prints
+        # PASS so it never stalls the pipeline — the objective gate still blocks
+        # real breakage.
+        id: review
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -f scripts/self-review.sh ]; then
+            VERDICT=$(bash scripts/self-review.sh)
+          else
+            VERDICT="PASS (no self-review script)"
+          fi
+          echo "$VERDICT"
+          if echo "$VERDICT" | head -1 | grep -q '^PASS'; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            echo "reason=$(echo "$VERDICT" | head -1)" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Auto-merge on green gate
-        if: steps.gate.outputs.passed == 'true'
+        if: steps.gate.outputs.passed == 'true' && steps.review.outputs.passed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -180,11 +212,12 @@ jobs:
             echo "::error::Auto-merge blocked (repo settings?) — see PR description for the owner." >&2
 
       - name: Report gate failure
-        if: steps.gate.outputs.passed == 'false'
+        if: steps.gate.outputs.passed == 'false' || steps.review.outputs.passed == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment "${{ github.ref_name }}" --body "🔴 Проверки не прошли:${{ steps.gate.outputs.failed }}"
+          gh pr comment "${{ github.ref_name }}" \
+            --body "🔴 Не прошло. Проверки:${{ steps.gate.outputs.failed }} · Само-ревью: ${{ steps.review.outputs.reason }}"
 
       - name: Dead-run alarm (task push path)
         if: failure() || cancelled()
