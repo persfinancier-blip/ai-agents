@@ -35,7 +35,7 @@ Navigation — `docs/full-vision/INDEX.md`; doc-editing rules — `docs/full-vis
 ## Token economy (owner decision, 2026-07-14)
 
 - **Model — Sonnet** (as specified in prompts); Opus or above only on the owner's explicit instruction.
-- **Minimal read scope:** file → folder → module; never scan the whole repo. Read canon selectively — only the sections a prompt references, not the whole PRD.
+- **Minimal read scope:** MAP.md → file → folder → module; never scan the whole repo. Read canon selectively — only the sections a prompt references, not the whole PRD; канон читать только по разделу из оглавления (TOC), не целиком.
 - **Playwright** — one pass against the DoD checklist at the end of a pass; screenshots only as finals for `renders/`; run `/compact` after a series of browser actions.
 - **Reports stay short:** conclusions and actions; don't recount code or file contents.
 - Guardrails are enforced by `.claude/settings.json` (model pin, thinking off, effort medium, session-budget hook) — do not weaken them without the owner's instruction.
@@ -53,6 +53,6 @@ Four subagents in `.claude/agents/` are **on-demand reviewers** (token economy, 
 
 Every subagent follows the same rules: canon (PRD → Management_Model → brand book), LLM-SDK isolation, RU localization for UI, token economy.
 
-## graphify
+## Навигация
 
-Knowledge graph in `graphify-out/`. For point tasks (find a function, read a file, a local fix) — use plain grep/Read: it's cheaper. `graphify query` — only for questions about relationships/architecture not visible from 1–2 files; after code edits `graphify update .` stays free (AST-only).
+Первая точка входа — `docs/MAP.md`: найди нужный раздел там и читай только его. Для точечных задач — grep/Read по конкретному файлу.
