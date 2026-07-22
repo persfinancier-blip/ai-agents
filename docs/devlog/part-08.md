@@ -2,6 +2,16 @@
 
 Записи с 2026-07-17 по 2026-07-22.
 
+## 2026-07-22 · task/prompt-49-goalcanvas-geometry-20260722135449 · не закоммичено (промпт №49)
+
+- **Что сделано:**
+  - Третий и последний срез god-file серии: из `frontend/src/os/GoalCanvas.tsx` (~41 KB / 960 строк) вынесен геометрический тулкит в `canvasGeometry.ts` — layout-константы (`CX`/`CY`/`CANVAS_W`/…), тип `Pt`, хелперы `polar`/`arcPositions`/`chunkRows`/`trimLine`/`curvedPath`, плюс `LINK_TYPE_LABEL`/`LINK_TYPE_CLASS`/`LINK_TYPES`.
+  - В отличие от GoalPopup/CommandPanel здесь нет извлекаемых компонентов — сам `GoalCanvas` не разбивался (осознанно вне скоупа, риск для одного мех. прохода).
+  - Чистый перенос без изменения логики/значений/стилей — `npm run lint` и `npm run build` зелёные.
+  - **God-file серия закрыта**: №47 GoalPopup, №48 CommandPanel, №49 GoalCanvas.
+- **Дальше:**
+  - Глубокая разборка самого `GoalCanvas` (компонент) — отдельная задача, если понадобится.
+
 ## 2026-07-22 · task/prompt-48-commandpanel-split-20260722134029 · не закоммичено (промпт №48)
 
 - **Что сделано:**

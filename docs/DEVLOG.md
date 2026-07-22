@@ -19,6 +19,7 @@
 
 ## Записи
 
+- 2026-07-22 · task/prompt-49-goalcanvas-geometry-20260722135449 · не закоммичено (промпт №49) — GoalCanvas.tsx: геометрия вынесена в canvasGeometry.ts, god-file серия закрыта (47/48/49) → [часть 08](devlog/part-08.md)
 - 2026-07-22 · task/prompt-48-commandpanel-split-20260722134029 · не закоммичено (промпт №48) — CommandPanel.tsx разбит: RealGoalMap/DemoGoalMap/panelIcons вынесены в свои файлы → [часть 08](devlog/part-08.md)
 - 2026-07-22 · task/prompt-47-goalpopup-split-20260722130929 · не закоммичено (промпт №47) — GoalPopup.tsx разбит: KpiFieldsRow/ParentPicker/OwnerPicker вынесены в свои файлы → [часть 08](devlog/part-08.md)
 - 2026-07-22 · task/prompt-ops-13-map-and-canon-tocs-20260722125943 · не закоммичено (промпт ops-13) — docs/MAP.md + TOC в трёх канонах, graphify убран из CLAUDE.md → [часть 08](devlog/part-08.md)
