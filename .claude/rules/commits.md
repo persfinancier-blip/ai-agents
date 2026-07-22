@@ -9,8 +9,9 @@
 
 ## Push and responsibility
 
-- Reading/inspecting the repo — Cowork via the GitHub MCP (**read-only**).
-- Writes (commit/branch/PR/merge) — **Claude Code only** (Cowork has no write access to the repo).
+- **Cowork write scope (2026-07-22):** Cowork pushes **only `task/**` branches** — a prompt file committed straight from its sandbox over HTTPS, authenticated with a fine-grained GitHub PAT stored locally at `.secrets/gh_token` (gitignored, never committed; `Contents: Read and write`). This is the **primary** way a prompt reaches the worker; the local Task Scheduler watcher (`scripts/dispatch-tasks.ps1`) is now only a **fallback** for prompts dropped while Cowork is closed. Details — `.claude/rules/github-automation.md` → "File-driven dispatch".
+- Cowork never pushes to `main` or any non-`task/**` branch, never merges a PR, and never writes to `backend/` or `frontend/`. Code writes, PR creation, and merges stay Claude Code's zone.
+- Reads/inspection — Cowork via the GitHub MCP (**read-only**) or plain `git` over HTTPS in its sandbox (SSH is unavailable from the sandbox).
+- **Sync is confirmed by fact:** after every push Cowork compares the local commit hash against the cloud (`git ls-remote`) and reports «совпадает / расходится» — an event-based check on each push, not a timer.
 - Direct push to `main` — human (owner) only; agents always go through a PR.
 - Every kickoff line from Cowork carries a preflight (Step 0) and a "tail cleanup" (see `COWORK.md` → "Working with the `prompts/` folder").
-- Cowork's sandbox and prompt-file language — see `COWORK.md` → "Push and responsibility (brief)".

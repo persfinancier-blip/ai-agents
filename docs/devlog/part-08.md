@@ -2,6 +2,16 @@
 
 Записи с 2026-07-17 по 2026-07-22.
 
+## 2026-07-22 · task/ops-11-cowork-direct-push-rules-20260722122918 · не закоммичено (промпт ops-11)
+
+- **Что сделано:**
+  - Канон приведён в соответствие с новой прямой записью Cowork в GitHub: Cowork теперь пушит `task/**`-ветки напрямую из своего sandbox по HTTPS, с fine-grained PAT в `.secrets/gh_token` (`Contents: Read and write`); SSH из sandbox недоступен.
+  - `.claude/rules/commits.md` → секция «Push and responsibility» переписана: прямой пуш Cowork — основной путь диспетчеризации, watcher (`scripts/dispatch-tasks.ps1`) — fallback; добавлена сверка sync по хешам.
+  - `.claude/rules/github-automation.md` → в «File-driven dispatch» добавлен буллет о прямом пуше как primary path, существующий буллет про installed copy помечен как «Fallback watcher».
+  - `COWORK.md` → обновлены «Boundaries», «Push and responsibility (brief)», «Sandbox», «New prompt»: везде отражён прямой git-write Cowork, ограниченный веткой `task/**`.
+- **Дальше:**
+  - Множество старых записей DEVLOG с «не закоммичено» ещё не финализированы (см. `grep -rn "не закоммичено"` по `docs/devlog/`) — вне рамок этого прохода, оставлено на будущий `/devlog`.
+
 ## 2026-07-22 · task/prompt-ops-10-devlog-shard-20260722111638 · не закоммичено (промпт ops-10)
 
 - **Что сделано:**
