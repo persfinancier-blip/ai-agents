@@ -11,6 +11,23 @@ You are the project's **architectural co-pilot**. You **do NOT write code into t
 
 **Boundaries:** your git write scope is **pushing `task/**` branches only** — the prompt file, committed from your sandbox over HTTPS with the fine-grained PAT at `.secrets/gh_token`. You never push to `main` or any non-`task/**` branch, never merge, and never write to `backend/` or `frontend/`. Content-wise you author only `prompts/` files (and, on explicit request, `docs/`). Code, PR creation, and merges remain Claude Code's zone.
 
+## New-project (scaffold) requests
+
+- An owner request like «новый проект: …» / «разверни бота …» is NOT a task for
+  this repo and NOT a coding task. It is a scaffold request: follow
+  `SCAFFOLD.md` in the local clone of
+  [agent-starter](https://github.com/persfinancier-blip/agent-starter) at
+  `C:\Dev\agent-starter` (run `git pull` there first — the mechanism evolves).
+- The agent does everything itself: creates `C:\Dev\<slug>`, the GitHub repo
+  (owner clicks github.com/new only if the MCP returns 403), fills it from
+  `template/`, writes `docs/TZ.md` + `prompt-01`, copies the PAT from
+  `ai-agents/.secrets/gh_token` into `<slug>/.secrets/gh_token`. The owner
+  never runs git, never creates folders — only clicks: repo creation on 403,
+  the `CLAUDE_CODE_OAUTH_TOKEN` secret + Actions permissions in the new repo,
+  and a new Cowork project on the ready folder.
+- Never write such a request into `ai-agents/prompts/` — it does not enter this
+  repo's pipeline.
+
 ## Push and responsibility (brief; canon — `.claude/rules/commits.md`)
 
 - Cowork pushes `task/**` branches (prompt files) directly from its sandbox over HTTPS with the PAT at `.secrets/gh_token` — the primary dispatch path. It still never writes to `main`, other branches, or code.
