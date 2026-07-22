@@ -15,10 +15,11 @@
 | [часть 05](devlog/part-05.md) | 2026-07-15 — 2026-07-16 | 10 |
 | [часть 06](devlog/part-06.md) | 2026-07-16 — 2026-07-16 | 8 |
 | [часть 07](devlog/part-07.md) | 2026-07-16 — 2026-07-17 | 10 |
-| [часть 08](devlog/part-08.md) | 2026-07-17 — 2026-07-22 | 6 |
+| [часть 08](devlog/part-08.md) | 2026-07-17 — 2026-07-22 | 7 |
 
 ## Записи
 
+- 2026-07-22 · task/prompt-50-goal-deadline-priority-backend-20260722141207 · не закоммичено (промпт №50) — ADR-0008 + backend-срез deadline/importance/urgency на Goal → [часть 08](devlog/part-08.md)
 - 2026-07-22 · task/prompt-49-goalcanvas-geometry-20260722135449 · не закоммичено (промпт №49) — GoalCanvas.tsx: геометрия вынесена в canvasGeometry.ts, god-file серия закрыта (47/48/49) → [часть 08](devlog/part-08.md)
 - 2026-07-22 · task/prompt-48-commandpanel-split-20260722134029 · не закоммичено (промпт №48) — CommandPanel.tsx разбит: RealGoalMap/DemoGoalMap/panelIcons вынесены в свои файлы → [часть 08](devlog/part-08.md)
 - 2026-07-22 · task/prompt-47-goalpopup-split-20260722130929 · не закоммичено (промпт №47) — GoalPopup.tsx разбит: KpiFieldsRow/ParentPicker/OwnerPicker вынесены в свои файлы → [часть 08](devlog/part-08.md)

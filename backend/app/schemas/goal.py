@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -20,6 +20,9 @@ class GoalCreate(BaseModel):
     description: str | None = None
     kpis: list[GoalKpi] = Field(default_factory=list)
     parent_id: str | None = None
+    deadline: date | None = None
+    importance: bool | None = None
+    urgency: bool | None = None
 
 
 class GoalPatch(BaseModel):
@@ -30,6 +33,9 @@ class GoalPatch(BaseModel):
     kpis: list[GoalKpi] | None = None
     is_backlog: bool | None = None
     parent_id: str | None = None
+    deadline: date | None = None
+    importance: bool | None = None
+    urgency: bool | None = None
 
 
 class GoalRead(BaseModel):
@@ -48,6 +54,9 @@ class GoalRead(BaseModel):
     is_backlog: bool
     definiteness: str
     parent_id: str | None
+    deadline: date | None
+    importance: bool | None
+    urgency: bool | None
 
     created_at: datetime
     updated_at: datetime

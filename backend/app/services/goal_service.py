@@ -109,6 +109,9 @@ async def to_goal_read(session: AsyncSession, entity: Entity, goal: Goal, kpi_ro
         is_backlog=goal.is_backlog,
         definiteness=compute_definiteness(goal.unit_id, measurable),
         parent_id=goal.parent_id,
+        deadline=goal.deadline,
+        importance=goal.importance,
+        urgency=goal.urgency,
         created_at=entity.created_at,
         updated_at=entity.updated_at,
     )
@@ -131,7 +134,13 @@ async def create_goal(session: AsyncSession, payload: GoalCreate) -> tuple[Entit
     await session.flush()  # populate entity.id
 
     goal = Goal(
-        entity_id=entity.id, role_label=payload.role_label.value, parent_id=payload.parent_id, unit_id=payload.unit_id
+        entity_id=entity.id,
+        role_label=payload.role_label.value,
+        parent_id=payload.parent_id,
+        unit_id=payload.unit_id,
+        deadline=payload.deadline,
+        importance=payload.importance,
+        urgency=payload.urgency,
     )
     session.add(goal)
     await session.flush()
