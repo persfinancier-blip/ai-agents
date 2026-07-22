@@ -31,6 +31,9 @@ Navigation — `docs/full-vision/INDEX.md`; doc-editing rules — `docs/full-vis
 - All user-facing UI text is in Russian (CONTRIBUTING "Localization").
 - LLM SDKs are imported ONLY in `backend/app/llm/<provider>_provider.py`; locally `LLM_PROVIDER=stub` — no keys needed.
 - End of every pass: an entry in `docs/DEVLOG.md` (`/devlog`, now an index over size-rotated parts in `docs/devlog/`), tasks in `BACKLOG.md`. The milestone table in README can lag — check `git log`.
+- «Новый проект / разверни бота X» from the owner = a scaffold request routed
+  through `agent-starter` (see `COWORK.md` → "New-project (scaffold) requests"),
+  never a task in this repo.
 
 ## Token economy (owner decision, 2026-07-14)
 
