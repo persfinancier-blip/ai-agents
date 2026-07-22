@@ -15,10 +15,11 @@
 | [часть 05](devlog/part-05.md) | 2026-07-15 — 2026-07-16 | 10 |
 | [часть 06](devlog/part-06.md) | 2026-07-16 — 2026-07-16 | 8 |
 | [часть 07](devlog/part-07.md) | 2026-07-16 — 2026-07-17 | 10 |
-| [часть 08](devlog/part-08.md) | 2026-07-17 — 2026-07-22 | 5 |
+| [часть 08](devlog/part-08.md) | 2026-07-17 — 2026-07-22 | 6 |
 
 ## Записи
 
+- 2026-07-22 · task/prompt-48-commandpanel-split-20260722134029 · не закоммичено (промпт №48) — CommandPanel.tsx разбит: RealGoalMap/DemoGoalMap/panelIcons вынесены в свои файлы → [часть 08](devlog/part-08.md)
 - 2026-07-22 · task/prompt-47-goalpopup-split-20260722130929 · не закоммичено (промпт №47) — GoalPopup.tsx разбит: KpiFieldsRow/ParentPicker/OwnerPicker вынесены в свои файлы → [часть 08](devlog/part-08.md)
 - 2026-07-22 · task/prompt-ops-13-map-and-canon-tocs-20260722125943 · не закоммичено (промпт ops-13) — docs/MAP.md + TOC в трёх канонах, graphify убран из CLAUDE.md → [часть 08](devlog/part-08.md)
 - 2026-07-22 · task/ops-11-cowork-direct-push-rules-20260722122918 · не закоммичено (промпт ops-11) — канон синхронизирован с прямым push Cowork в task/** по HTTPS/PAT → [часть 08](devlog/part-08.md)
