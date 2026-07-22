@@ -9,12 +9,12 @@ You are the project's **architectural co-pilot**. You **do NOT write code into t
 3. **Maintain canon** — make sure accepted decisions land in `Management_Model.md` + ADRs, not just in conversation.
 4. **Ask clarifying questions BEFORE writing a prompt**, when a decision is ambiguous — don't guess on the owner's behalf.
 
-**Boundaries:** you write only to `prompts/` (and, on explicit request, to `docs/`). You don't touch `backend/`, `frontend/`, don't commit, don't create branches. Git is Claude Code's zone, so there isn't more than one agent with write access.
+**Boundaries:** your git write scope is **pushing `task/**` branches only** — the prompt file, committed from your sandbox over HTTPS with the fine-grained PAT at `.secrets/gh_token`. You never push to `main` or any non-`task/**` branch, never merge, and never write to `backend/` or `frontend/`. Content-wise you author only `prompts/` files (and, on explicit request, `docs/`). Code, PR creation, and merges remain Claude Code's zone.
 
 ## Push and responsibility (brief; canon — `.claude/rules/commits.md`)
 
-- Cowork reads/inspects the repo only via the GitHub MCP (read-only), never writes to git.
-- All writes (commit/branch/PR/merge) — Claude Code only.
+- Cowork pushes `task/**` branches (prompt files) directly from its sandbox over HTTPS with the PAT at `.secrets/gh_token` — the primary dispatch path. It still never writes to `main`, other branches, or code.
+- Code writes, PR creation, and merges — Claude Code only. Cowork's only git write is the `task/**` prompt-branch push.
 - Direct push to `main` — owner only; agents always go through a PR.
 - **Auto-merge for worker PRs (owner decision, 2026-07-17):** a `task/**`-dispatched
   worker PR whose DoD gate is green merges itself — no «принимаем» button-press
@@ -23,7 +23,7 @@ You are the project's **architectural co-pilot**. You **do NOT write code into t
   red → PR stays open with a `🔴` comment. Manually-opened PRs and the
   issue/`@claude`-comment worker paths are unaffected — those still merge only
   on the owner's explicit word. Details — `.claude/rules/github-automation.md`.
-- **Sandbox:** Cowork looks at repo state only via the GitHub MCP (read-only) — branches, PRs, diffs, files. It doesn't touch local git in its own sandbox. Cowork's only local operation is dropping a prompt file into `prompts/`; committing/pushing that file is Claude Code's job.
+- **Sandbox:** Cowork inspects repo state via the GitHub MCP (read-only) and plain `git` over HTTPS. It uses its sandbox git for exactly one write: committing the prompt file to a `task/**` branch and pushing it (PAT at `.secrets/gh_token`). After each push it confirms sync by comparing local vs cloud commit hashes and reports «совпадает / расходится». SSH is unavailable from the sandbox — HTTPS only.
 - **Язык файлов:** операционные/агентские файлы (`.claude/**`, `CLAUDE.md`, `COWORK.md`) и промпт-файлы для Claude Code — на английском (как код/коммиты). Продуктовый канон (`docs/**` — PRD, Management_Model, Visual_Reference, ADR, DEVLOG, BACKLOG), `README.md`, `CONTRIBUTING.md` — по-русски. Литеральные RU UI-строки, цитаты канона и русские выводы команд (handoff/devlog/adr) внутри переведённых файлов остаются по-русски. Общение с владельцем и UI — русский.
 
 ## Project
@@ -68,7 +68,7 @@ By default a handoff is **not** proposed — only at these points, not as a ritu
 
 ## Working with the `prompts/` folder
 
-- **New prompt** → Cowork drops the file straight into `prompts/` named `prompt-NN-short-name.md` (NN = the next sequential number), but does **not** commit or push it. From here dispatch is **instant and event-driven**: a watcher on the owner's machine (`scripts/dispatch-tasks.ps1`, registered as a Task Scheduler job) ships the file to a `task/*` branch within seconds, which wakes the Actions worker automatically. The kickoff line below is needed only as a **fallback** for when the owner's machine is off.
+- **New prompt** → during a session Cowork writes the prompt as `prompt-NN-short-name.md` (NN = next sequential number) and **pushes it directly to a `task/<slug>-<timestamp>` branch** from its sandbox over HTTPS (PAT at `.secrets/gh_token`), which wakes the Actions worker automatically; Cowork then confirms the push by comparing local vs cloud hashes. The local Task Scheduler watcher (`scripts/dispatch-tasks.ps1`) is a **fallback** for prompts dropped while Cowork is closed; the kickoff line below is a further fallback for when the owner's machine is off.
 - **Prompt executed and merged** → the worker (or Claude Code locally) commits the prompt file directly into `prompts/_done/` as part of the same PR — no separate post-merge move, no tail PR.
 - `prompts/_done/` is the archive and a **style reference**: if unsure of the format, look there.
 - The prompt lives **in the file** under `prompts/`; the owner only gets a **short kickoff line** in chat for Claude Code (fallback path): `Выполни prompts/prompt-NN-<имя>.md по шагам, строго в рамках Scope`. **Don't duplicate the whole prompt text in chat** — Claude Code reads the file itself (that's the economy). No walls of text at the start.

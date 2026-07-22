@@ -43,7 +43,17 @@
 
 ## File-driven dispatch (prompt file → `task/*` branch → worker)
 
-- The **installed copy** at `%LOCALAPPDATA%\ai-agents-ops\dispatch-tasks.ps1`
+- **Primary path — Cowork direct push (2026-07-22):** during a session Cowork
+  commits the new `prompts/prompt-*.md` file straight to a
+  `task/<slug>-<timestamp>` branch from its own sandbox, pushed over HTTPS
+  with the fine-grained PAT at `.secrets/gh_token` (`Contents: Read and
+  write`). SSH does not work from the sandbox; HTTPS does. The `push` trigger
+  in `claude.yml` picks the branch up exactly as before — the worker is
+  unchanged, and the owner's machine is not in the loop. After the push
+  Cowork confirms sync by comparing local vs cloud commit hashes. The Task
+  Scheduler watcher below is the **fallback** for files dropped while Cowork
+  is closed.
+- **Fallback watcher.** The **installed copy** at `%LOCALAPPDATA%\ai-agents-ops\dispatch-tasks.ps1`
   is what actually runs (via Task Scheduler) — not `scripts/dispatch-tasks.ps1`
   in the repo. The repo copy lives outside the working tree because the
   checkout is shared across branches: if the owner's parallel session has an
