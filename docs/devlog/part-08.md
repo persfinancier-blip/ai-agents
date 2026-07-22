@@ -2,6 +2,16 @@
 
 Записи с 2026-07-17 по 2026-07-22.
 
+## 2026-07-22 · task/prompt-48-commandpanel-split-20260722134029 · не закоммичено (промпт №48)
+
+- **Что сделано:**
+  - Второй срез god-file серии: из `frontend/src/os/CommandPanel.tsx` (~50 KB / 1209 строк) вынесены `RealGoalMap.tsx`, `DemoGoalMap.tsx` и `panelIcons.tsx` (Icon/HumanDot/AiDot/RailButton/HoverGlyph/STROKE).
+  - `branchStyle`/`SEL_ICON`/`BRANCH_STYLES`/`FOG_ICON` остались в CommandPanel.tsx (используются им самим для GoalPopup) и экспортированы для RealGoalMap/DemoGoalMap.
+  - Чистый перенос без изменения логики/пропсов/стилей — CommandPanel.tsx: 1209 → 468 строк.
+  - `npm run lint` и `npm run build` зелёные.
+- **Дальше:**
+  - Последний срез god-file серии — GoalCanvas.tsx (отдельный промпт).
+
 ## 2026-07-22 · task/prompt-47-goalpopup-split-20260722130929 · не закоммичено (промпт №47)
 
 - **Что сделано:**
