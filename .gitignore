@@ -15,6 +15,9 @@ htmlcov/
 *.db
 *.sqlite3
 
+# Cowork push credential (GitHub PAT) — local only, NEVER versioned
+.secrets/
+
 # Node / frontend
 node_modules/
 dist/
