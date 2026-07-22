@@ -140,8 +140,12 @@ jobs:
         # PRs and merges made with GITHUB_TOKEN don't trigger other workflows
         # (GitHub anti-recursion), so ci.yml will not run on this PR or on
         # main after a bot merge — the gate has to be computed right here.
+        # set -x: every command is traced in the log, so a failure is
+        # diagnosable from the raw log without expanding UI steps (ops-14,
+        # after run 29911316201 hid its gate verdict).
         id: gate
         run: |
+          set -x
           TOUCHED=$(git diff --name-only origin/main...HEAD)
           echo "$TOUCHED"
           FAILED=""
@@ -173,6 +177,7 @@ jobs:
           fi
 
           if [ -n "$FAILED" ]; then
+            echo "::error::DoD gate failed:$FAILED"
             echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
             echo "passed=false" >> "$GITHUB_OUTPUT"
           else
@@ -190,17 +195,23 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
+          set -x
           if [ -f scripts/self-review.sh ]; then
-            VERDICT=$(bash scripts/self-review.sh)
+            VERDICT=$(bash scripts/self-review.sh | tail -1)
           else
-            VERDICT="PASS (no self-review script)"
+            VERDICT="PASS - no self-review script"
           fi
-          echo "$VERDICT"
-          if echo "$VERDICT" | head -1 | grep -q '^PASS'; then
+          # Sanitize before it ever reaches an output: strip characters that
+          # could break downstream shell/comment composition (ops-14 fix for
+          # the `syntax error near unexpected token '('` crash).
+          VERDICT=$(printf '%s' "$VERDICT" | tr -d '`"$\\' | cut -c1-300)
+          echo "verdict: $VERDICT"
+          if printf '%s' "$VERDICT" | grep -q '^PASS'; then
             echo "passed=true" >> "$GITHUB_OUTPUT"
           else
+            echo "::error::Self-review failed: $VERDICT"
             echo "passed=false" >> "$GITHUB_OUTPUT"
-            echo "reason=$(echo "$VERDICT" | head -1)" >> "$GITHUB_OUTPUT"
+            echo "reason=$VERDICT" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Auto-merge on green gate
@@ -215,9 +226,17 @@ jobs:
         if: steps.gate.outputs.passed == 'false' || steps.review.outputs.passed == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
+          # Values enter the shell as env vars — never interpolated into the
+          # script text, so no character in them can break bash (ops-14 fix).
+          GATE_FAILED: ${{ steps.gate.outputs.failed }}
+          REVIEW_REASON: ${{ steps.review.outputs.reason }}
         run: |
-          gh pr comment "${{ github.ref_name }}" \
-            --body "🔴 Не прошло. Проверки:${{ steps.gate.outputs.failed }} · Само-ревью: ${{ steps.review.outputs.reason }}"
+          {
+            printf '🔴 Не прошло.\n'
+            printf 'Проверки:%s\n' "${GATE_FAILED:- ok}"
+            printf 'Само-ревью: %s\n' "${REVIEW_REASON:-ok}"
+          } > /tmp/fail_comment.md
+          gh pr comment "${{ github.ref_name }}" --body-file /tmp/fail_comment.md
 
       - name: Dead-run alarm (task push path)
         if: failure() || cancelled()
