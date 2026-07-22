@@ -2,6 +2,15 @@
 
 Записи с 2026-07-17 по 2026-07-22.
 
+## 2026-07-22 · task/prompt-47-goalpopup-split-20260722130929 · не закоммичено (промпт №47)
+
+- **Что сделано:**
+  - Первый срез god-file серии: из `frontend/src/os/GoalPopup.tsx` (~42 KB) вынесены три самостоятельных компонента в отдельные файлы — `KpiFieldsRow.tsx` (+ тип `KpiFieldsValue`), `ParentPicker.tsx`, `OwnerPicker.tsx`.
+  - Чистый перенос без изменения логики/пропсов/стилей — GoalPopup.tsx теперь импортирует все три; `QUADRANTS` остался в GoalPopup.tsx (используется только там).
+  - `npm run lint` и `npm run build` зелёные.
+- **Дальше:**
+  - Следующие срезы god-file серии — CommandPanel.tsx и GoalCanvas.tsx (отдельные промпты).
+
 ## 2026-07-22 · task/prompt-ops-13-map-and-canon-tocs-20260722125943 · не закоммичено (промпт ops-13)
 
 - **Что сделано:**
